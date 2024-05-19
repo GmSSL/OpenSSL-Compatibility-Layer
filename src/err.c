@@ -55,15 +55,16 @@ void ERR_clear_error(void)
 {
 }
 
+// 仅用于`PEM_read_bio_X509`遇到`eof(bio)`的情况
 int ERR_GET_LIB(unsigned long e)
 {
-	return ERR_LIB_NONE;
+	return ERR_LIB_PEM;
 }
 
-// 通过mask返回错误相关bits
+// 仅用于`PEM_read_bio_X509`遇到`eof(bio)`的情况
 int ERR_GET_REASON(unsigned long e)
 {
-	return (int)e;
+	return PEM_R_NO_START_LINE;
 }
 
 

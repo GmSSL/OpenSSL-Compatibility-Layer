@@ -16,7 +16,8 @@
 void OPENSSL_free(void *p)
 {
 	if (p) {
-		free(p);
+		//fprintf(stderr, "OPENSSL_free %s\n", (char *)p);
+		//free(p); // 目前会导致segment fault
 	}
 }
 

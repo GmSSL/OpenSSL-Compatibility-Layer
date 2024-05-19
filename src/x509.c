@@ -70,9 +70,15 @@ int X509_NAME_print_ex(BIO *bio, const X509_NAME *name, int indent, unsigned lon
 	return 1;
 }
 
+// `X509_NAME_oneline`返回一个新创建的字符串，并且会被`OPENSSL_free`释放
 char *X509_NAME_oneline(const X509_NAME *mame, char *buf, int buflen)
 {
-	return "not supported";
+	if (!buf) {
+		return strdup("X509_NAME_oneline() called");
+	} else {
+		strncpy(buf, "X509_NAME_oneline() called", buflen);
+		return buf;
+	}
 }
 
 int X509_NAME_digest(const X509_NAME *name, const EVP_MD *md, unsigned char *dgst, unsigned int *dgstlen)
@@ -183,11 +189,12 @@ int X509_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func, CRYPTO
 void X509_free(X509 *x509)
 {
 	if (x509) {
+		if (x509->d) {
+			free(x509->d);
+		}
 		free(x509);
 	}
 }
-
-
 
 X509_NAME *sk_X509_NAME_value(const STACK_OF(X509_NAME) *sk, int idx)
 {

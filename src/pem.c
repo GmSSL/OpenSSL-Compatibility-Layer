@@ -11,30 +11,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <gmssl/mem.h>
 #include <gmssl/rand.h>
 #include <gmssl/x509.h>
 #include <gmssl/error.h>
 #include <openssl/pem.h>
 
-
-EVP_PKEY *PEM_read_bio_PrivateKey(BIO *bio, EVP_PKEY **pp, pem_password_cb *cb, void *u)
-{
-	EVP_PKEY *ret;
-	char pass[1024] = {0};
-
-	cb(pass, sizeof(pass), 0, u);
-
-	if (sm2_private_key_info_decrypt_from_pem(&ret->signkey, pass, bio) != 1) {
-		error_print();
-		return NULL;
-	}
-	if (sm2_private_key_info_decrypt_from_pem(&ret->kenckey, pass, bio) != 1) {
-		error_print();
-		return NULL;
-	}
-
-	return ret;
-}
 
 DH *PEM_read_bio_DHparams(BIO *bio, DH **dh, pem_password_cb *cb, void *u)
 {
@@ -48,34 +30,56 @@ EVP_PKEY *PEM_read_bio_Parameters(BIO *bio, EVP_PKEY **pkey)
 	return NULL;
 }
 
-// 如果x509 && *x509，说明调用方传入了一个已经申请的x509对象，否则我们得自己申请一个
-X509 *PEM_read_bio_X509(BIO *bio, X509 **pp, pem_password_cb *cb, void *u)
+EVP_PKEY *PEM_read_bio_PrivateKey(BIO *bio, EVP_PKEY **pp, pem_password_cb *cb, void *u)
 {
-	X509 *x509;
+	EVP_PKEY *pkey = NULL;
+	char pass[1024] = {0};
 
-	if (pp && *pp) {
-		x509 = *pp;
-		if (x509->d) {
-			free(x509->d);
-			x509->d = NULL;
-		}
-	} else {
-		if (!(x509 = (X509 *)malloc(sizeof(X509)))) {
-			error_print();
-			return NULL;
-		}
-	}
+	cb(pass, sizeof(pass), 0, u);
 
-	if (!(x509->d = (uint8_t *)malloc(X509_MAX_SIZE))) {
+	if (!(pkey = (EVP_PKEY *)malloc(sizeof(*pkey)))) {
 		error_print();
-		free(x509);
 		return NULL;
 	}
 
-	if (x509_cert_from_pem(x509->d, &x509->dlen, X509_MAX_SIZE, bio) != 1) {
+	if (sm2_private_key_info_decrypt_from_pem(&pkey->signkey, pass, bio) != 1) {
 		error_print();
-		free(x509->d);
-		free(x509);
+		free(pkey);
+		return NULL;
+	}
+	if (sm2_private_key_info_decrypt_from_pem(&pkey->kenckey, pass, bio) != 1) {
+		error_print();
+		gmssl_secure_clear(pkey, sizeof(*pkey));
+		free(pkey);
+		return NULL;
+	}
+
+	if (pp && *pp) {
+		EVP_PKEY_free(*pp);
+		*pp = NULL;
+	}
+	return pkey;
+}
+
+X509 *PEM_read_bio_X509(BIO *bio, X509 **pp, pem_password_cb *cb, void *u)
+{
+	X509 *x509;
+	int ret;
+
+	if (!(x509 = (X509 *)malloc(sizeof(X509)))) {
+		error_print();
+		return NULL;
+	}
+	if (!(x509->d = (uint8_t *)malloc(X509_MAX_SIZE))) {
+		error_print();
+		X509_free(x509);
+		return NULL;
+	}
+	if ((ret = x509_cert_from_pem(x509->d, &x509->dlen, X509_MAX_SIZE, bio)) != 1) {
+		if (ret) {
+			error_print();
+		}
+		X509_free(x509);
 		return NULL;
 	}
 
@@ -102,5 +106,3 @@ int PEM_write_bio_X509(BIO *bio, X509 *x509)
 	}
 	return 1;
 }
-
-

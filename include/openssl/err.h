@@ -46,9 +46,13 @@ void ERR_clear_error(void);
 #define ERR_LIB_NONE            1
 #define ERR_LIB_PEM             9
 
-
-// OpenSSL的错误e中实际上包含了错误所在的LIB的编码，因此给到一个错误号，我们知道这个错误是哪个库发出来的
-
+/*
+ * 调用`PEM_read_bio_X509`出错或读取到文件EOF，`PEM_read_bio_X509`都会返回NULL
+ * 调用方需要通`if (ERR_GET_LIB(n) == ERR_LIB_PEM && ERR_GET_REASON(n) == PEM_R_NO_START_LINE)`
+ * 判断是解析错误还是读取完毕。
+ * 由于Nginx 1.25.3 版本之前调用`ERR_GET_LIB`和`ERR_GET_REASON`
+ * 只用于这个单一目的，因此我们返回`ERR_LIB_PEM`和`PEM_R_NO_START_LINE`这两个固定值
+ */
 int ERR_GET_LIB(unsigned long e);
 int ERR_GET_REASON(unsigned long e);
 

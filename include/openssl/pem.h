@@ -40,6 +40,8 @@ DH *PEM_read_bio_DHparams(BIO *bp, DH **x, pem_password_cb *cb, void *u);
  * 因此不需要针对TLS/TLCP协议做特殊的证书读取操作
  */
 
+
+
 X509 *PEM_read_bio_X509(BIO *bio, X509 **x509, pem_password_cb *cb, void *u);
 X509 *PEM_read_bio_X509_AUX(BIO *bio, X509 **x509, pem_password_cb *cb, void *u);
 int PEM_write_bio_X509(BIO *bio, X509 *x509);

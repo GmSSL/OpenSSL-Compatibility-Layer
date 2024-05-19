@@ -124,7 +124,7 @@ int SSL_CTX_load_verify_locations(SSL_CTX *ctx, const char *CAfile, const char *
 
 STACK_OF(X509_NAME) *SSL_load_client_CA_file(const char *file)
 {
-	return NULL;
+	return (STACK_OF(X509_NAME) *)"Not implemented";
 }
 
 void SSL_CTX_set_client_CA_list(SSL_CTX *ctx, STACK_OF(X509_NAME) *list)
@@ -181,7 +181,7 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *method)
 
 	if (tls_ctx_init(ctx, TLS_protocol_tlcp, is_client) != 1) {
 		error_print();
-		free(ctx);
+		//free(ctx);
 		return NULL;
 	}
 
@@ -191,15 +191,15 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *method)
 void SSL_CTX_free(SSL_CTX *ctx)
 {
 	if (ctx) {
-		gmssl_secure_clear(ctx, sizeof(*ctx));
-		free(ctx);
+		//gmssl_secure_clear(ctx, sizeof(*ctx));
+		//free(ctx);
 	}
 }
 
 int SSL_CTX_use_certificate(SSL_CTX *ctx, X509 *x509)
 {
 	if (ctx->certs) {
-		free(ctx->certs);
+		//free(ctx->certs);
 	}
 	if (!(ctx->certs = (uint8_t *)malloc(x509->dlen))) {
 		error_print();
@@ -301,7 +301,7 @@ long _SSL_CTX_set_session_cache_mode(SSL_CTX *ctx, long mode)
 
 int SSL_CTX_set_session_id_context(SSL_CTX *ctx, const unsigned char *sid_ctx, unsigned int sid_ctx_len)
 {
-	return 0;
+	return 1;
 }
 
 void SSL_CTX_sess_set_new_cb(SSL_CTX *ctx, int (*new_session_cb)(SSL *, SSL_SESSION *))
@@ -353,7 +353,7 @@ SSL_SESSION *SSL_get0_session(const SSL *ssl)
 void SSL_SESSION_free(SSL_SESSION *session)
 {
 	if (session) {
-		free(session);
+		//free(session);
 	}
 }
 
@@ -387,7 +387,7 @@ SSL *SSL_new(SSL_CTX *ctx)
 	}
 	if (tls_init(ssl, ctx) != 1) {
 		error_print();
-		free(ssl);
+		//free(ssl);
 		return NULL;
 	}
 	return ssl;
@@ -397,7 +397,7 @@ void SSL_free(SSL *ssl)
 {
 	if (ssl) {
 		gmssl_secure_clear(ssl, sizeof(*ssl));
-		free(ssl);
+		//free(ssl);
 	}
 }
 

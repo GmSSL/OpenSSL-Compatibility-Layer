@@ -46,6 +46,9 @@ BIO *BIO_new_file(const char *filename, const char *mode)
 {
 	FILE *fp;
 
+
+	fprintf(stderr, "BIO_new_file %s\n", filename);
+
 	if (!(fp = fopen(filename, mode))) {
 		error_print();
 		return NULL;
@@ -71,8 +74,8 @@ int BIO_write(BIO *bio, const void *buf, int len)
 	return (int)n;
 }
 
-
-// FIXME: 这个函数的功能是什么？是怎么用的？
+// Nginx将`X509`的属性信息打印到`BIO`中，再从`BIO`中读出来写入到一个缓冲区中
+// `BIO_pending`返回`bio`中已经写入的数据长度，用来`malloc`缓冲区
 int BIO_pending(BIO *bio)
 {
 	ftell(bio);
@@ -94,7 +97,8 @@ int BIO_free(BIO *bio)
 	return 1;
 }
 
-// FIXME
+// Nginx调用`ASN1_TIME_print`将时间字符串按特定格式打印到`bio`中
+// 通过`BIO_get_mem_data`从中读取字符串，并用`ngx_parse_http_time`解析这个字符串
 int BIO_get_mem_data(BIO *bio, char **pp)
 {
 	*(pp) = NULL;

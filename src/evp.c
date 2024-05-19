@@ -71,13 +71,17 @@ int EVP_DigestFinal_ex(EVP_MD_CTX *ctx, unsigned char *dgst, unsigned int *dgstl
 
 void EVP_MD_CTX_free(EVP_MD_CTX *ctx)
 {
-	free(ctx);
+	if (ctx) {
+		free(ctx);
+	}
 }
 
 void EVP_PKEY_free(EVP_PKEY *pkey)
 {
-	gmssl_secure_clear(pkey, sizeof(EVP_PKEY));
-	free(pkey);
+	if (pkey) {
+		gmssl_secure_clear(pkey, sizeof(EVP_PKEY));
+		free(pkey);
+	}
 }
 
 

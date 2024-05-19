@@ -14,7 +14,7 @@ set(crypto_src
 	src/rand.c
 	src/asn1.c
 	src/x509.c
-	src/x509_vrf.c
+	src/x509_vfy.c
 	src/crypto.c
 	src/pem.c
 	src/dh.c

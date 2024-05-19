@@ -121,11 +121,7 @@ int X509_set_ex_data(X509 *x509, int idx, void *arg);
 void *X509_get_ex_data(const X509 *x509, int idx);
 
 
-
 const char *X509_verify_cert_error_string(long n);
-
-
-
 
 
 #define STACK_OF_X509_MAX_NUM 16
