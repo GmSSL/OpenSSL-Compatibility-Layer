@@ -10,6 +10,7 @@
 #ifndef OPENSSL_OPENSSLV_H
 #define OPENSSL_OPENSSLV_H
 
+#include <gmssl/version.h>
 
 #ifdef __cplusplus
 extern "C" {

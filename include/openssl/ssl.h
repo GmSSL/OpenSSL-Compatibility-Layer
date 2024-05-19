@@ -15,6 +15,8 @@
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
 #include <openssl/dh.h>
+#include <openssl/pem.h>
+
 #include <gmssl/tls.h>
 
 #ifdef __cplusplus
@@ -38,19 +40,32 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *method);
 void SSL_CTX_free(SSL_CTX *ctx);
 
 int SSL_CTX_use_certificate(SSL_CTX *ctx, X509 *x509);
-int SSL_CTX_set0_chain(SSL_CTX *ctx, STACK_OF(X509) *sk);
+
+
+int _SSL_CTX_set0_chain(SSL_CTX *ctx, STACK_OF(X509) *sk);
+#define SSL_CTX_set0_chain(ctx,sk) _SSL_CTX_set0_chain(ctx,sk)
+
+
 int SSL_CTX_use_PrivateKey(SSL_CTX *ctx, EVP_PKEY *pkey);
 long SSL_CTX_get_timeout(SSL_CTX *ctx);
-int SSL_CTX_set1_curves_list(SSL_CTX *ctx, char *list);
+
+// the origina `SSL_CTX_set1_group_list` is a macro of `SSL_CTX_ctrl`
+int _SSL_CTX_set1_group_list(SSL_CTX *ctx, char *list);
+#define SSL_CTX_set1_curves_list(ctx,list) SSL_CTX_set1_group_list(ctx,list)
+#define SSL_CTX_set1_group_list(ctx,list) _SSL_CTX_set1_group_list(ctx,list)
+
+
 
 // called by ngx_ssl_session_id_context
 STACK_OF(X509_NAME) *SSL_CTX_get_client_CA_list(const SSL_CTX *ctx);
 
 
 // nginx-1.18
-long SSL_CTX_set_tmp_dh(SSL_CTX *ctx, DH *dh);
-int SSL_CTX_set0_tmp_dh_pkey(SSL_CTX *ctx, EVP_PKEY *pkey);
+long _SSL_CTX_set_tmp_dh(SSL_CTX *ctx, DH *dh);
+#define SSL_CTX_set_tmp_dh(ctx,dh) _SSL_CTX_set_tmp_dh(ctx,dh)
 
+
+int SSL_CTX_set0_tmp_dh_pkey(SSL_CTX *ctx, EVP_PKEY *pkey); // function
 
 
 int  SSL_CTX_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func, CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
@@ -133,12 +148,19 @@ void *SSL_get_ex_data(const SSL *ssl, int idx);
 # define SSL_ERROR_WANT_CLIENT_HELLO_CB 11
 # define SSL_ERROR_WANT_RETRY_VERIFY    12
 
-long SSL_CTX_set_session_cache_mode(SSL_CTX ctx, long mode);
-int  SSL_CTX_set_session_id_context(SSL_CTX *ctx, const unsigned char *sid_ctx, unsigned int sid_ctx_len);
-void SSL_CTX_sess_set_new_cb(SSL_CTX *ctx, int (*new_session_cb)(SSL *, SSL_SESSION *));
-void SSL_CTX_sess_set_get_cb(SSL_CTX *ctx, SSL_SESSION (*get_session_cb)(SSL *, const unsigned char *, int, int *));
+
+long _SSL_CTX_set_session_cache_mode(SSL_CTX *ctx, long mode);
+#define SSL_CTX_set_session_cache_mode(ctx,mode) _SSL_CTX_set_session_cache_mode(ctx,mode)
+int  SSL_CTX_set_session_id_context(SSL_CTX *ctx, const unsigned char *sid_ctx, unsigned int sid_ctx_len); // func
+void SSL_CTX_sess_set_new_cb(SSL_CTX *ctx, int (*new_session_cb)(SSL *, SSL_SESSION *)); // func
+void SSL_CTX_sess_set_get_cb(SSL_CTX *ctx, SSL_SESSION *(*get_session_cb)(SSL *, const unsigned char *, int, int *));
 void SSL_CTX_sess_set_remove_cb(SSL_CTX *ctx, void (*remove_session_cb)(SSL_CTX *ctx, SSL_SESSION *));
 
+long _SSL_CTX_sess_set_cache_size(SSL_CTX *ctx, long t);
+#define SSL_CTX_sess_set_cache_size(ctx,t) _SSL_CTX_sess_set_cache_size(ctx,t) 
+
+
+int SSL_CTX_remove_session(SSL_CTX *ctx, SSL_SESSION *c);
 
 
 /*
@@ -150,8 +172,8 @@ void SSL_CTX_sess_set_remove_cb(SSL_CTX *ctx, void (*remove_session_cb)(SSL_CTX 
 
 void SSL_CTX_set_info_callback(SSL_CTX *ctx,
 	void (*callback) (const SSL *ssl, int type, int val));
-BIO *SSL_get_rbio(SSL *ssl);
-BIO *SSL_get_wbio(SSL *ssl);
+BIO *SSL_get_rbio(const SSL *ssl);
+BIO *SSL_get_wbio(const SSL *ssl);
 long BIO_set_write_buffer_size(BIO *bio, long size);
 
 
@@ -171,8 +193,20 @@ int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str);
 
 // GmSSL不支持options
 // 注意：这里列出的 SSL_OP_ 不全
-#define SSL_OP_NO_COMPRESSION
-#define SSL_OP_NO_RENEGOTIATION
+#define SSL_OP_NO_COMPRESSION	1
+#define SSL_OP_NO_RENEGOTIATION	1
+
+#define SSL_OP_SINGLE_DH_USE	1
+#define SSL_OP_SINGLE_ECDH_USE	1
+
+#define SSL_OP_NO_SSLv2		1
+#define SSL_OP_NO_SSLv3		1
+#define SSL_OP_NO_TLSv1		1
+#define SSL_OP_NO_SSLv2		1
+#define SSL_OP_NO_SSLv3		1
+#define SSL_OP_NO_TLSv1		1
+
+#define SSL_OP_CIPHER_SERVER_PREFERENCE 1
 
 
 uint64_t SSL_CTX_set_options(SSL_CTX *ctx, uint64_t options);
@@ -193,7 +227,12 @@ void SSL_CTX_set_verify_depth(SSL_CTX *ctx, int depth);
 int SSL_CTX_load_verify_locations(SSL_CTX *ctx, const char *CAfile, const char *CApath);
 STACK_OF(X509_NAME) *SSL_load_client_CA_file(const char *file);
 void SSL_CTX_set_client_CA_list(SSL_CTX *ctx, STACK_OF(X509_NAME) *list);
-X509 *SSL_get_peer_certificate(const SSL *ssl);
+
+
+X509 *SSL_get1_peer_certificate(const SSL *ssl);
+#define SSL_get_peer_certificate(ssl) SSL_get1_peer_certificate(ssl)
+
+
 long SSL_get_verify_result(const SSL *ssl);
 
 
@@ -205,6 +244,8 @@ long SSL_get_verify_result(const SSL *ssl);
 # define SSL_VERIFY_CLIENT_ONCE          0x04
 # define SSL_VERIFY_POST_HANDSHAKE       0x08
 
+int SSL_get_ex_data_X509_STORE_CTX_idx(void);
+
 
 
 typedef int (*SSL_verify_cb)(int preverify_ok, X509_STORE_CTX *x509_ctx);
@@ -212,6 +253,7 @@ typedef int (*SSL_verify_cb)(int preverify_ok, X509_STORE_CTX *x509_ctx);
 void SSL_CTX_set_verify(SSL_CTX *ctx, int mode, SSL_verify_cb verify_callback);
 int SSL_CTX_get_verify_mode(const SSL_CTX *ctx);
 
+X509_STORE *SSL_CTX_get_cert_store(const SSL_CTX *ctx);
 
 
 #undef SSL_R_CERT_CB_ERROR

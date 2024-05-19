@@ -21,11 +21,95 @@ typedef void X509_LOOKUP_METHOD;
 typedef void X509_LOOKUP;
 
 
+// from openssl/x509_vfy.h of openssl-3.1.4
+/* Certificate verify flags */
+# ifndef OPENSSL_NO_DEPRECATED_1_1_0
+#  define X509_V_FLAG_CB_ISSUER_CHECK             0x0   /* Deprecated */
+# endif
+/* Use check time instead of current time */
+# define X509_V_FLAG_USE_CHECK_TIME              0x2
+/* Lookup CRLs */
+# define X509_V_FLAG_CRL_CHECK                   0x4
+/* Lookup CRLs for whole chain */
+# define X509_V_FLAG_CRL_CHECK_ALL               0x8
+/* Ignore unhandled critical extensions */
+# define X509_V_FLAG_IGNORE_CRITICAL             0x10
+/* Disable workarounds for broken certificates */
+# define X509_V_FLAG_X509_STRICT                 0x20
+/* Enable proxy certificate validation */
+# define X509_V_FLAG_ALLOW_PROXY_CERTS           0x40
+/* Enable policy checking */
+# define X509_V_FLAG_POLICY_CHECK                0x80
+/* Policy variable require-explicit-policy */
+# define X509_V_FLAG_EXPLICIT_POLICY             0x100
+/* Policy variable inhibit-any-policy */
+# define X509_V_FLAG_INHIBIT_ANY                 0x200
+/* Policy variable inhibit-policy-mapping */
+# define X509_V_FLAG_INHIBIT_MAP                 0x400
+/* Notify callback that policy is OK */
+# define X509_V_FLAG_NOTIFY_POLICY               0x800
+/* Extended CRL features such as indirect CRLs, alternate CRL signing keys */
+# define X509_V_FLAG_EXTENDED_CRL_SUPPORT        0x1000
+/* Delta CRL support */
+# define X509_V_FLAG_USE_DELTAS                  0x2000
+/* Check self-signed CA signature */
+# define X509_V_FLAG_CHECK_SS_SIGNATURE          0x4000
+/* Use trusted store first */
+# define X509_V_FLAG_TRUSTED_FIRST               0x8000
+/* Suite B 128 bit only mode: not normally used */
+# define X509_V_FLAG_SUITEB_128_LOS_ONLY         0x10000
+/* Suite B 192 bit only mode */
+# define X509_V_FLAG_SUITEB_192_LOS              0x20000
+/* Suite B 128 bit mode allowing 192 bit algorithms */
+# define X509_V_FLAG_SUITEB_128_LOS              0x30000
+/* Allow partial chains if at least one certificate is in trusted store */
+# define X509_V_FLAG_PARTIAL_CHAIN               0x80000
+/*
+ * If the initial chain is not trusted, do not attempt to build an alternative
+ * chain. Alternate chain checking was introduced in 1.1.0. Setting this flag
+ * will force the behaviour to match that of previous versions.
+ */
+# define X509_V_FLAG_NO_ALT_CHAINS               0x100000
+/* Do not check certificate/CRL validity against current time */
+# define X509_V_FLAG_NO_CHECK_TIME               0x200000
+
+# define X509_VP_FLAG_DEFAULT                    0x1
+# define X509_VP_FLAG_OVERWRITE                  0x2
+# define X509_VP_FLAG_RESET_FLAGS                0x4
+# define X509_VP_FLAG_LOCKED                     0x8
+# define X509_VP_FLAG_ONCE                       0x10
+
+/* Internal use: mask of policy related options */
+# define X509_V_FLAG_POLICY_MASK (X509_V_FLAG_POLICY_CHECK \
+                                | X509_V_FLAG_EXPLICIT_POLICY \
+                                | X509_V_FLAG_INHIBIT_ANY \
+                                | X509_V_FLAG_INHIBIT_MAP)
+
+
 int X509_STORE_set_flags(X509_STORE *store, unsigned long flags);
+
+
+
+
+
+
+
+
+
+
+
+
+
 X509_LOOKUP *X509_STORE_add_lookup(X509_STORE *store, X509_LOOKUP_METHOD *meth);
 X509_LOOKUP_METHOD *X509_LOOKUP_file(void);
-int X509_LOOKUP_load_file(X509_LOOKUP *ctx, char *name, long type);
 
+
+
+// `type` :
+# define X509_FILETYPE_PEM       1
+# define X509_FILETYPE_ASN1      2
+# define X509_FILETYPE_DEFAULT   3
+int X509_LOOKUP_load_file(X509_LOOKUP *ctx, char *name, long type);
 
 
 

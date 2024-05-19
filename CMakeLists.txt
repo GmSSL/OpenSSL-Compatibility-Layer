@@ -16,6 +16,7 @@ set(crypto_src
 	src/x509.c
 	src/x509_vrf.c
 	src/crypto.c
+	src/pem.c
 	src/dh.c
 )
 

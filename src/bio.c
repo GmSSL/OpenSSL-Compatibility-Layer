@@ -95,7 +95,7 @@ int BIO_free(BIO *bio)
 }
 
 // FIXME
-int BIO_get_mem_data(BIO *bio, unsigned char **pp)
+int BIO_get_mem_data(BIO *bio, char **pp)
 {
 	*(pp) = NULL;
 	return -1;

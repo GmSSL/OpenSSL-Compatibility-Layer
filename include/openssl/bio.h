@@ -30,7 +30,7 @@ int BIO_read(BIO *bio, void *buf, int len);
 int BIO_write(BIO *bio, const void *buf, int len);
 int BIO_pending(BIO *bio);
 int BIO_reset(BIO *bio);
-int BIO_get_mem_data(BIO *bio, unsigned char **pp);
+int BIO_get_mem_data(BIO *bio, char **pp);
 int BIO_free(BIO *bio);
 
 

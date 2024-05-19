@@ -196,7 +196,7 @@ X509_NAME *sk_X509_NAME_value(const STACK_OF(X509_NAME) *sk, int idx)
 
 int sk_X509_NAME_num(const STACK_OF(X509_NAME) *sk)
 {
-	return 0;
+	return sk->top;
 }
 
 
@@ -213,6 +213,12 @@ STACK_OF(X509) *sk_X509_new_null()
 	return sk;
 }
 
+int sk_X509_num(const STACK_OF(X509) *sk)
+{
+	return sk->top;
+}
+
+
 int sk_X509_push(STACK_OF(X509) *sk, const X509 *x509)
 {
 	if (sk->top >= STACK_OF_X509_MAX_NUM) {
@@ -225,7 +231,7 @@ int sk_X509_push(STACK_OF(X509) *sk, const X509 *x509)
 	return 1;
 }
 
-void sk_X509_pop_free(STACK_OF(X509) *sk, void (*func)(void *))
+void sk_X509_pop_free(STACK_OF(X509) *sk, void (*func)(X509 *))
 {
 	if (sk->top > 0) {
 		sk->top -= 1;

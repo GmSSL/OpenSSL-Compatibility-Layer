@@ -55,6 +55,17 @@ void ERR_clear_error(void)
 {
 }
 
+int ERR_GET_LIB(unsigned long e)
+{
+	return ERR_LIB_NONE;
+}
+
+// 通过mask返回错误相关bits
+int ERR_GET_REASON(unsigned long e)
+{
+	return (int)e;
+}
+
 
 
 

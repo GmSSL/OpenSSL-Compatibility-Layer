@@ -11,24 +11,23 @@
 #define OPENSSL_PEM_H
 
 #include <openssl/dh.h>
+#include <openssl/evp.h>
+#include <openssl/bio.h>
+#include <openssl/x509.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 
-#define pem_password_cb	void
-typedef int (*pem_password_callback)(char *buf, int size, int rwflag, void *u);
+typedef int (pem_password_cb)(char *buf, int size, int rwflag, void *u);
 
-
-DH *PEM_read_bio_DHparams(BIO *bp, DH **x, pem_password_cb *cb, void *u);
-
-EVP_PKEY *PEM_read_bio_Parameters(BIO *bp, EVP_PKEY **x);
-
-
+//int pem_password_cb(char *buf, int size, int rwflag, void *u);
 
 EVP_PKEY *PEM_read_bio_PrivateKey(BIO *bio, EVP_PKEY **pkey, pem_password_cb *cb, void *pass);
+EVP_PKEY *PEM_read_bio_Parameters(BIO *bio, EVP_PKEY **pkey);
 
+DH *PEM_read_bio_DHparams(BIO *bp, DH **x, pem_password_cb *cb, void *u);
 
 /*
  * Nginx 通过`PEM_read_bio_X509_AUX`读取`BIO`中的终端证书，放入`X509`对象，
@@ -40,35 +39,10 @@ EVP_PKEY *PEM_read_bio_PrivateKey(BIO *bio, EVP_PKEY **pkey, pem_password_cb *cb
  * 经过这个默认的流程之后，在`TLS_CTX`中都是完整的终端证书链
  * 因此不需要针对TLS/TLCP协议做特殊的证书读取操作
  */
-#define PEM_read_bio_X509(bio,outpp,password_cb,args)		\
-({								\
-	X509 *ret = (X509 *)malloc(sizeof(*ret));		\
-	assert((outpp) == NULL);				\
-	if (ret) {						\
-		ret->d = (uint8_t *)malloc(X509_MAX_SIZE);	\
-		if (ret->d) {					\
-			if (x509_cert_from_pem(ret->d, &ret->dlen, X509_MAX_SIZE, bio) != 1) { \
-				printf("x509_cert_from_pem error\n");	\
-				free(ret->d);			\
-				free(ret);			\
-				ret = NULL;			\
-			}					\
-		} else {					\
-			printf("mallo error\n");		\
-			free(ret);				\
-			ret = NULL;				\
-		}						\
-	}							\
-	printf("PEM_read_bio_X509 OK %d\n", ret != NULL);	\
-	ret;							\
-})
-#define PEM_read_bio_X509_AUX(bio,outpp,password_cb,args) \
-	PEM_read_bio_X509(bio,outpp,password_cb,args)
 
-#define PEM_write_bio_X509(bio,x509) \
-	(x509_cert_to_pem((x509)->d,(x509)->dlen,(bio)) == 1 ? 1 : 0)
-
-
+X509 *PEM_read_bio_X509(BIO *bio, X509 **x509, pem_password_cb *cb, void *u);
+X509 *PEM_read_bio_X509_AUX(BIO *bio, X509 **x509, pem_password_cb *cb, void *u);
+int PEM_write_bio_X509(BIO *bio, X509 *x509);
 
 
 #ifdef __cplusplus

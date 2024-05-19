@@ -12,30 +12,25 @@
 #include <string.h>
 #include <stdlib.h>
 #include <gmssl/rand.h>
+#include <gmssl/x509.h>
 #include <gmssl/error.h>
 #include <openssl/pem.h>
 
 
-
-
-// 这个函数实现的不对				
-EVP_PKEY *PEM_read_bio_PrivateKey(BIO *bio, EVP_PKEY **pkey, pem_password_cb *cb, void *pass)
+EVP_PKEY *PEM_read_bio_PrivateKey(BIO *bio, EVP_PKEY **pp, pem_password_cb *cb, void *u)
 {
 	EVP_PKEY *ret;
-	char buf[1024] = {0};
+	char pass[1024] = {0};
 
-	cb(buf, sizeof(buf), 0, pass)
+	cb(pass, sizeof(pass), 0, u);
 
-
-
-	if (sm2_private_key_info_decrypt_from_pem(&ret->signkey, buf, bio) != 1) {
+	if (sm2_private_key_info_decrypt_from_pem(&ret->signkey, pass, bio) != 1) {
 		error_print();
-		return -1;
+		return NULL;
 	}
-
-	if (sm2_private_key_info_decrypt_from_pem(&ret->kenckey, buf, bio) != 1) {
+	if (sm2_private_key_info_decrypt_from_pem(&ret->kenckey, pass, bio) != 1) {
 		error_print();
-		return -1;
+		return NULL;
 	}
 
 	return ret;
@@ -53,5 +48,59 @@ EVP_PKEY *PEM_read_bio_Parameters(BIO *bio, EVP_PKEY **pkey)
 	return NULL;
 }
 
+// 如果x509 && *x509，说明调用方传入了一个已经申请的x509对象，否则我们得自己申请一个
+X509 *PEM_read_bio_X509(BIO *bio, X509 **pp, pem_password_cb *cb, void *u)
+{
+	X509 *x509;
+
+	if (pp && *pp) {
+		x509 = *pp;
+		if (x509->d) {
+			free(x509->d);
+			x509->d = NULL;
+		}
+	} else {
+		if (!(x509 = (X509 *)malloc(sizeof(X509)))) {
+			error_print();
+			return NULL;
+		}
+	}
+
+	if (!(x509->d = (uint8_t *)malloc(X509_MAX_SIZE))) {
+		error_print();
+		free(x509);
+		return NULL;
+	}
+
+	if (x509_cert_from_pem(x509->d, &x509->dlen, X509_MAX_SIZE, bio) != 1) {
+		error_print();
+		free(x509->d);
+		free(x509);
+		return NULL;
+	}
+
+	return x509;
+}
+
+X509 *PEM_read_bio_X509_AUX(BIO *bio, X509 **pp, pem_password_cb *cb, void *u)
+{
+	X509 *x509;
+
+	if (!(x509 = PEM_read_bio_X509(bio, pp, cb, u))) {
+		error_print();
+		return NULL;
+	}
+
+	return x509;
+}
+
+int PEM_write_bio_X509(BIO *bio, X509 *x509)
+{
+	if (x509_cert_to_pem(x509->d, x509->dlen, bio) != 1) {
+		error_print();
+		return 0;
+	}
+	return 1;
+}
 
 

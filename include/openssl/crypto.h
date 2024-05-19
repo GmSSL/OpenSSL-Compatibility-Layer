@@ -10,6 +10,7 @@
 #ifndef OPENSSL_CRYPTO_H
 #define OPENSSL_CRYPTO_H
 
+#include <openssl/opensslv.h>
 
 #ifdef __cplusplus
 extern "C" {

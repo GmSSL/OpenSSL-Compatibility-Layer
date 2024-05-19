@@ -21,13 +21,54 @@ extern "C" {
 #endif
 
 
+#define X509_MAX_SIZE (64*1024)
+
 typedef struct {
 	uint8_t *d;
 	size_t dlen;
 } X509_NAME;
 
 int X509_NAME_digest(const X509_NAME *name, const EVP_MD *md, unsigned char *dgst, unsigned int *dgstlen);
+
+
 int X509_NAME_print_ex(BIO *bio, const X509_NAME *name, int indent, unsigned long flags);
+
+
+# define XN_FLAG_SEP_MASK        (0xf << 16)
+# define XN_FLAG_COMPAT          0/* Traditional; use old X509_NAME_print */
+# define XN_FLAG_SEP_COMMA_PLUS  (1 << 16)/* RFC2253 ,+ */
+# define XN_FLAG_SEP_CPLUS_SPC   (2 << 16)/* ,+ spaced: more readable */
+# define XN_FLAG_SEP_SPLUS_SPC   (3 << 16)/* ;+ spaced */
+# define XN_FLAG_SEP_MULTILINE   (4 << 16)/* One line per field */
+# define XN_FLAG_DN_REV          (1 << 20)/* Reverse DN order */
+# define XN_FLAG_FN_MASK         (0x3 << 21)
+# define XN_FLAG_FN_SN           0/* Object short name */
+# define XN_FLAG_FN_LN           (1 << 21)/* Object long name */
+# define XN_FLAG_FN_OID          (2 << 21)/* Always use OIDs */
+# define XN_FLAG_FN_NONE         (3 << 21)/* No field names */
+# define XN_FLAG_SPC_EQ          (1 << 23)/* Put spaces round '=' */
+# define XN_FLAG_DUMP_UNKNOWN_FIELDS (1 << 24)
+# define XN_FLAG_FN_ALIGN        (1 << 25)/* Align field names to 20 */
+# define ASN1_STRFLGS_RFC2253 0
+# define XN_FLAG_RFC2253 (ASN1_STRFLGS_RFC2253 | \
+                        XN_FLAG_SEP_COMMA_PLUS | \
+                        XN_FLAG_DN_REV | \
+                        XN_FLAG_FN_SN | \
+                        XN_FLAG_DUMP_UNKNOWN_FIELDS)
+# define XN_FLAG_ONELINE (ASN1_STRFLGS_RFC2253 | \
+                        ASN1_STRFLGS_ESC_QUOTE | \
+                        XN_FLAG_SEP_CPLUS_SPC | \
+                        XN_FLAG_SPC_EQ | \
+                        XN_FLAG_FN_SN)
+# define XN_FLAG_MULTILINE (ASN1_STRFLGS_ESC_CTRL | \
+                        ASN1_STRFLGS_ESC_MSB | \
+                        XN_FLAG_SEP_MULTILINE | \
+                        XN_FLAG_SPC_EQ | \
+                        XN_FLAG_FN_LN | \
+                        XN_FLAG_FN_ALIGN)
+
+
+
 char *X509_NAME_oneline(const X509_NAME *mame, char *buf, int buflen);
 
 
@@ -85,6 +126,8 @@ const char *X509_verify_cert_error_string(long n);
 
 
 
+
+
 #define STACK_OF_X509_MAX_NUM 16
 
 typedef struct {
@@ -93,8 +136,13 @@ typedef struct {
 } STACK_OF_X509;
 
 STACK_OF(X509) *sk_X509_new_null();
+
+
+
+int sk_X509_num(const STACK_OF(X509) *sk);
+
 int  sk_X509_push(STACK_OF(X509) *sk, const X509 *x509);
-void sk_X509_pop_free(STACK_OF(X509) *sk, void (*func)(void *));
+void sk_X509_pop_free(STACK_OF(X509) *sk, void (*func)(X509 *));
 
 
 typedef void X509_STORE;

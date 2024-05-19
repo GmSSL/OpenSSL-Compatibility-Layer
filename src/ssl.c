@@ -16,7 +16,10 @@
 #include <openssl/crypto.h>
 
 
-
+int OPENSSL_init_ssl(uint64_t opts, const OPENSSL_INIT_SETTINGS *settings)
+{
+	return 1;
+}
 
 
 
@@ -128,7 +131,7 @@ void SSL_CTX_set_client_CA_list(SSL_CTX *ctx, STACK_OF(X509_NAME) *list)
 {
 }
 
-X509 *SSL_get_peer_certificate(const SSL *ssl)
+X509 *SSL_get1_peer_certificate(const SSL *ssl)
 {
 	return NULL;			
 }
@@ -208,7 +211,7 @@ int SSL_CTX_use_certificate(SSL_CTX *ctx, X509 *x509)
 }
 
 
-int SSL_CTX_set0_chain(SSL_CTX *ctx, STACK_OF(X509) *sk)
+int _SSL_CTX_set0_chain(SSL_CTX *ctx, STACK_OF(X509) *sk)
 {
 	size_t total_len = ctx->certslen;
 	int i;
@@ -237,7 +240,7 @@ int SSL_CTX_use_PrivateKey(SSL_CTX *ctx, EVP_PKEY *pkey)
 	return 1;
 }
 
-int SSL_CTX_set1_curves_list(SSL_CTX *ctx, char *list)
+int _SSL_CTX_set1_group_list(SSL_CTX *ctx, char *list)
 {
 	if (strcmp(list, "sm2p256v1") != 0) {
 		error_print();
@@ -246,7 +249,7 @@ int SSL_CTX_set1_curves_list(SSL_CTX *ctx, char *list)
 	return 1;
 }
 
-long SSL_CTX_set_tmp_dh(SSL_CTX *ctx, DH *dh)
+long _SSL_CTX_set_tmp_dh(SSL_CTX *ctx, DH *dh)
 {
 	return 0;
 }
@@ -291,7 +294,7 @@ void *SSL_CTX_get_ex_data(const SSL_CTX *d, int idx)
 
 
 
-long SSL_CTX_set_session_cache_mode(SSL_CTX ctx, long mode)
+long _SSL_CTX_set_session_cache_mode(SSL_CTX *ctx, long mode)
 {
 	return 0;
 }
@@ -305,9 +308,18 @@ void SSL_CTX_sess_set_new_cb(SSL_CTX *ctx, int (*new_session_cb)(SSL *, SSL_SESS
 {
 }
 
+long _SSL_CTX_sess_set_cache_size(SSL_CTX *ctx, long t)
+{
+	return 1;
+}
+
+int SSL_CTX_remove_session(SSL_CTX *ctx, SSL_SESSION *c)
+{
+	return 1;
+}
 
 void SSL_CTX_sess_set_get_cb(SSL_CTX *ctx,
-	SSL_SESSION (*get_session_cb)(SSL *, const unsigned char *, int, int *))
+	SSL_SESSION *(*get_session_cb)(SSL *, const unsigned char *, int, int *))
 {
 }
 
@@ -334,6 +346,29 @@ SSL_SESSION *SSL_get1_session(SSL *ssl)
 }
 
 SSL_SESSION *SSL_get0_session(const SSL *ssl)
+{
+	return NULL;
+}
+
+void SSL_SESSION_free(SSL_SESSION *session)
+{
+	if (session) {
+		free(session);
+	}
+}
+
+
+const unsigned char *SSL_SESSION_get_id(const SSL_SESSION *s, unsigned int *len)
+{
+	return NULL;
+}
+
+int i2d_SSL_SESSION(SSL_SESSION *in, unsigned char **pp)
+{
+	return 0;
+}
+
+SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, const unsigned char **pp, long length)
 {
 	return NULL;
 }
@@ -479,6 +514,12 @@ void SSL_set_shutdown(SSL *ssl, int mode)
 {
 }
 
+int SSL_get_ex_data_X509_STORE_CTX_idx(void)
+{
+	return 0;
+}
+
+
 // 返回 SSL_SENT_SHUTDOWN, SSL_RECEIVED_SHUTDOWN 等状态信息
 // 但是我们也处理不了这个值，
 // 协议是QUIC的时候返回0，我估计因为我们没有处理能力，返回什么都没有区别
@@ -532,12 +573,12 @@ void SSL_CTX_set_info_callback(SSL_CTX *ctx,
 {
 }
 
-BIO *SSL_get_rbio(SSL *ssl)
+BIO *SSL_get_rbio(const SSL *ssl)
 {
 	return NULL;
 }
 
-BIO *SSL_get_wbio(SSL *ssl)
+BIO *SSL_get_wbio(const SSL *ssl)
 {
 	return NULL;
 }
