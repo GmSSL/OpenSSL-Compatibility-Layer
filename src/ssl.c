@@ -131,9 +131,21 @@ void SSL_CTX_set_client_CA_list(SSL_CTX *ctx, STACK_OF(X509_NAME) *list)
 {
 }
 
+// 在启用client_verify时，Nginx通过这个`SSL_get1_peer_certificate`获得客户端证书
+// 如果返回值为NULL，那么Nginx会返回 400 Bad Request - No required SSL certificate was sent 错误消息
 X509 *SSL_get1_peer_certificate(const SSL *ssl)
 {
-	return NULL;			
+	X509 *x509;
+
+	if (!(x509 = (X509 *)malloc(sizeof(*x509)))) {
+		error_print();
+		return NULL;
+	}
+
+	// FIXME: 从`ssl`中获取客户端证书
+	memset(x509, 0, sizeof(*x509));
+
+	return x509;
 }
 
 long SSL_get_verify_result(const SSL *ssl)
@@ -530,6 +542,7 @@ int SSL_get_shutdown(const SSL *ssl)
 
 int SSL_shutdown(SSL *ssl)
 {
+	// 当客户端Ctrl+C关闭连接时，客户端进程已经关闭，socket已经关闭，因此服务器端的shutdown不会返回1
 	if (tls_shutdown(ssl) != 1) {
 		error_print();
 		return 0;
