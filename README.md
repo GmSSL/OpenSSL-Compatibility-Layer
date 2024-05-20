@@ -15,11 +15,9 @@ sudo make install
 
 在安装完成后，会在`/usr/local/include`目录下创建`openssl`目录并安装OpenSSL同名的头文件，并且在`/usr/local/lib`目录下安装`libcrypto`和`libssl`两个和OpenSSL同名的库文件。
 
-## 兼容性
+## 和Nginx集成
 
-由于OpenSSL-Compatible-Layer并没有封装所有的OpenSSL接口，因此无法兼容所有依赖OpenSSL的应用。
-
-### Nginx
+### 编译安装Nginx
 
 首先应该确保GmSSL和OpenSSL-Compatible-Layer已经安装，并且保证默认的系统路径中的头文件和库文件的确来自OpenSSL-Compatible-Layer。如果默认系统路径是`/usr/local`，那么检查`/usr/local/include/openssl/opensslv.h`是否为OCL的版本，以及检查`/usr/local/lib/libcrypto.so`是否依赖`libgmssl`。
 
@@ -39,6 +37,8 @@ sudo make install
 ```
 
 Nginx的二进制程序、配置文件、日志文件等默认均安装在`/usr/loca/nginx`目录下，可以执行`sudo /usr/local/nginx/bin/nginx`来启动Nginx。在默认情况下Nginx并没有启用SSL功能，需要修改配置文件，并提供SSL需要的证书、密钥文件。
+
+### 修改Nginx配置文件
 
 修改Nginx的配置文件`/usr/local/nginx/conf/nginx.conf`，启用SSL
 
@@ -60,8 +60,6 @@ server {
 ```
 
 其中`server_tlcp_certs.pem`是一个完整的服务器证书链，`server_tlcp_keys.pem`相对特殊，这里有两个PEM格式的私钥，分别是签名私钥和加密私钥，这两个私钥需要用相同的加密口令，并且口令存储在`server_password.txt`中。
-
-
 
 ### 生成服务器TLCP证书
 
@@ -153,6 +151,63 @@ Host: localhost
 然后可以看到Nginx返回的index.html。此时连接没有中断，可再次访问。
 
 如果gmssl客户端发送的请求格式不正确，例如发送了`GET /`，那么Nginx-1.22仍然返回index.html，但是会shutdown SSL连接。
+
+### 设置Nginx验证客户端证书
+
+通常来说，公网网站通常是不验证客户端证书的，但是一些内部网站或者网络服务可以通过客户端证书来进行用户的强身份认证。
+
+前面的Nginx配置文件中没有启用验证客户端证书功能，通过增加配置选项`ssl_verify_client`可以设置客户端证书验证功能是否启用。修改后的Nginx配置文件如下：
+
+```
+server {
+	listen       4443 ssl;
+	server_name  localhost;
+
+	ssl_certificate      /usr/local/nginx/conf/tlcp_server_certs.pem;
+	ssl_certificate_key  /usr/local/nginx/conf/tlcp_server_keys.pem;
+	ssl_password_file    /usr/local/nginx/conf/tlcp_server_password.txt;
+	ssl_ecdh_curve       sm2p256v1;
+
+	ssl_client_certificate /usr/local/nginx/conf/tlcp_client_verify_cacert.pem;
+	ssl_verify_client on;
+	ssl_verify_depth 4;
+
+	location / {
+		root   html;
+		index  index.html index.htm;
+	}
+}
+```
+
+其中增加了`ssl_client_certificate`、`ssl_verify_client`和`ssl_verify_depth`选项。
+
+其中`ssl_client_certificate`用于设置签发客户端证书的CA证书。
+
+### 生成客户端证书
+
+Web服务器证书是由知名CA及其下属CA签发的，根CA证书通常被浏览器等客户端终端内置安装。但是SSL的客户端证书不一定是由知名CA签名的，可能是由网站自己的CA签发或者其他CA签名，并且客户端证书的CA和服务器的CA通常不是相同的CA。但是这里为了演示，采用前面生成的中间CA签发客户端证书。
+
+下面的例子展示了生成客户端私钥，以及签发客户端证书的过程。
+
+```bash
+$ gmssl sm2keygen -pass 123456 -out clientkey.pem
+$ gmssl reqgen -C CN -ST Beijing -L Haidian -O PKU -OU CS -CN TlcpClient -key clientkey.pem -pass 123456 -out clientreq.pem
+$ gmssl reqsign -in clientreq.pem -days 365 -key_usage digitalSignature -cacert cacert.pem -key cakey.pem -pass P@ssw0rd -out clientcert.pem
+```
+
+注意这里客户端证书的CA证书是服务器的中间CA证书`cacert.pem`，需要将这个证书作为客户端验证的CA证书安装到配置文件中指定的路径。
+
+```bash
+$ sudo cp cacert.pem /usr/local/nginx/conf/tlcp_client_verify_cacert.pem
+```
+
+### 测试带客户端验证的HTTPS
+
+执行
+
+```bash
+$ gmssl tlcp_client -host localhost -port 4443 -cacert rootcacert.pem -cert clientcert.pem -key clientkey.pem -pass 123456
+```
 
 
 
