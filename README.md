@@ -52,10 +52,6 @@ server {
 	ssl_password_file    /usr/local/nginx/conf/tlcp_server_password.txt;
 	ssl_ecdh_curve       sm2p256v1;
 
-	ssl_client_certificate /usr/local/nginx/conf/client_verify_cacert.pem;
-	ssl_verify_client on;
-	ssl_verify_depth 1;
-
 	location / {
 		root   html;
 		index  index.html index.htm;
@@ -77,7 +73,7 @@ TLCP服务器的完整证书链是由服务器终端签名证书、服务器终�
 
 ```bash
 $ gmssl sm2keygen -pass P@ssw0rd -out rootcakey.pem
-$ gmssl certgen -C CN -ST Beijing -L Haidian -O PKU -OU CS -CN ROOTCA -days 3650 -key rootcakey.pem -pass 1234 -out rootcacert.pem -key_usage keyCertSign -key_usage cRLSign -ca
+$ gmssl certgen -C CN -ST Beijing -L Haidian -O PKU -OU CS -CN ROOTCA -days 3650 -key rootcakey.pem -pass P@ssw0rd -out rootcacert.pem -key_usage keyCertSign -key_usage cRLSign -ca
 ```
 
 第二步，生成中间CA的私钥和证书请求文件(REQ)，然后用根CA证书私钥对中间CA的REQ进行签名，生成中间CA证书。
@@ -132,16 +128,6 @@ $ cp tlcp_server_keys.pem /usr/local/nginx/conf/tlcp_server_keys.pem
 $ echo P@ssw0rd > /usr/local/nginx/conf/tlcp_server_password.txt
 ```
 
-### 准备客户端证书
-
-```bash
-$ gmssl sm2keygen -pass 123456 -out clientkey.pem
-$ gmssl reqgen -C CN -ST Beijing -L Haidian -O PKU -OU CS -CN localhost -key clientkey.pem -pass 123456 -out clientreq.pem
-$ gmssl reqsign -in signreq.pem -days 365 -key_usage digitalSignature -cacert cacert.pem -key cakey.pem -pass P@ssw0rd -out clientcert.pem
-```
-
-
-
 ### 启动服务器并测试HTTPS
 
 注意，在macOS上，编译安装nginx之后需要执行
@@ -153,7 +139,7 @@ sudo install_name_tool -add_rpath /usr/local/lib /usr/local/nginx/sbin/nginx
 然后可以用gmssl的命令行客户端进行验证，注意，客户端需要用于验证服务器的根CA证书，客户端证书和私钥，这些文件保存在`client`目录下。
 
 ```bash
-gmssl tls12_client -host localhost -port 4443 -cacert rootcacert.pem -cert clientcert.pem -key clientkey.pem -pass 1234
+gmssl tlcp_client -host localhost -port 4443 -cacert rootcacert.pem
 ```
 
 在gmssl命令行连接服务器之后需要发送三行消息
