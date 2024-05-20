@@ -46,8 +46,8 @@ BIO *BIO_new_file(const char *filename, const char *mode)
 {
 	FILE *fp;
 
-
-	fprintf(stderr, "BIO_new_file %s\n", filename);
+	//Nginx打开证书和密钥文件时会调用`BIO_new_file`
+	//fprintf(stderr, "BIO_new_file(%s)\n", filename);
 
 	if (!(fp = fopen(filename, mode))) {
 		error_print();
