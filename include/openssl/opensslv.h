@@ -16,11 +16,13 @@
 extern "C" {
 #endif
 
+
+#define GMSSL_OCL_VERSION_STR	"GmSSL OCL 0.8.0 Dev"
+
 #define OPENSSL_VERSION_NUMBER	0x30000000L
 #define OPENSSL_VERSION_TEXT	GMSSL_VERSION_STR
 #define OpenSSL_version(num)	GMSSL_VERSION_STR
 #define SSLeay_version(num)	GMSSL_VERSION_STR
-
 
 #ifdef __cplusplus
 }

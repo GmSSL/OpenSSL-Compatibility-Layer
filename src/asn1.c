@@ -15,10 +15,16 @@
 #include <openssl/asn1.h>
 
 
-// Nginx调用`i2a_ASN1_INTEGER`将`X509`中的SerialNumber输出到`BIO`中，再从`BIO`中读取到一个字符串缓冲区中
+// `bio` is used as a buffer, caller first print `a` into `bio`, and than read from `bio` into buffer
 int i2a_ASN1_INTEGER(BIO *bio, const ASN1_INTEGER *a)
 {
 	size_t i;
+
+	if (!bio || !a) {
+		error_print();
+		return 0;
+	}
+
 	for (i = 0; i < a->dlen; i++) {
 		fprintf(bio, "%02x", a->d[i]);
 	}
@@ -27,6 +33,11 @@ int i2a_ASN1_INTEGER(BIO *bio, const ASN1_INTEGER *a)
 
 int ASN1_TIME_print(BIO *bio, const ASN1_TIME *tm)
 {
+	if (!bio || !tm) {
+		error_print();
+		return 0;
+	}
+
 	fprintf(bio, "%s", ctime(tm));
 	return 1;
 }

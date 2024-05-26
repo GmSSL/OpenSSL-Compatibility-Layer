@@ -15,7 +15,7 @@
 extern "C" {
 #endif
 
-// 保证Nginx中ENGINE和OCSP相关代码不启用
+
 #define OPENSSL_NO_ENGINE
 #define OPENSSL_NO_OCSP
 

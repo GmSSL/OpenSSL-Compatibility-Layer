@@ -16,52 +16,82 @@
 #include <openssl/x509.h>
 
 
+X509 *X509_new(void)
+{
+	X509 *x509;
+
+	if (!(x509 = (X509 *)malloc(sizeof(X509)))) {
+		error_print();
+		return NULL;
+	}
+	memset(x509, 0, sizeof(X509));
+
+	if (!(x509->d = (uint8_t *)malloc(X509_MAX_SIZE))) {
+		free(x509);
+		error_print();
+		return NULL;
+	}
+	return x509;
+}
+
+void X509_free(X509 *x509)
+{
+	if (x509) {
+		if (x509->d) {
+			free(x509->d);
+		}
+		free(x509);
+	}
+}
+
+// `X509_get_serialNumber` return an internal pointer of `x509` and MUST NOT be freed.
 ASN1_INTEGER *X509_get_serialNumber(X509 *x509)
 {
-	ASN1_INTEGER *serial = &x509->serial;
-
-	if (x509_cert_get_details(x509->d, x509->dlen,
-		NULL,
-		(const uint8_t **)&serial->d, &serial->dlen,
-		NULL,
-		NULL, NULL,
-		NULL, NULL,
-		NULL, NULL,
-		NULL,
-		NULL, NULL,
-		NULL, NULL,
-		NULL, NULL,
-		NULL,
-		NULL, NULL) != 1) {
+	if (!x509) {
 		error_print();
 		return NULL;
 	}
-
-	return serial;
+	return &x509->serial;
 }
 
+// `X509_get_subject_name` return an internal pointer of `x509` and MUST NOT be freed.
 X509_NAME *X509_get_subject_name(const X509 *x509)
 {
-	X509_NAME *name = (X509_NAME *)&x509->subject;
-
-	if (x509_cert_get_subject(x509->d, x509->dlen, (const uint8_t **)&name->d, &name->dlen) != 1) {
+	if (!x509) {
 		error_print();
 		return NULL;
 	}
-
-	return name;
+	return (X509_NAME *)&x509->subject;
 }
 
+// `X509_get_issuer_name` return an internal pointer of `x509` and MUST NOT be freed.
 X509_NAME *X509_get_issuer_name(const X509 *x509)
 {
-	X509_NAME *name = (X509_NAME *)&x509->issuer;
-
-	if (x509_cert_get_issuer(x509->d, x509->dlen, (const uint8_t **)&name->d, &name->dlen) != 1) {
+	if (!x509) {
 		error_print();
 		return NULL;
 	}
+	return (X509_NAME *)&x509->issuer;
+}
 
-	return name;
+// `X509_get0_notBefore` return an internal pointer of `x509` and MUST NOT be freed.
+const ASN1_TIME *X509_get0_notBefore(const X509 *x509)
+{
+	if (!x509) {
+		error_print();
+		return NULL;
+	}
+	return &x509->not_before;
+}
+
+// `X509_get0_notAfter` return an internal pointer of `x509` and MUST NOT be freed.
+const ASN1_TIME *X509_get0_notAfter(const X509 *x509)
+{
+	if (!x509) {
+		error_print();
+		return NULL;
+	}
+	return &x509->not_after;
 }
 
 int X509_NAME_print_ex(BIO *bio, const X509_NAME *name, int indent, unsigned long flags)
@@ -70,7 +100,8 @@ int X509_NAME_print_ex(BIO *bio, const X509_NAME *name, int indent, unsigned lon
 	return 1;
 }
 
-// `X509_NAME_oneline`返回一个新创建的字符串，并且会被`OPENSSL_free`释放
+// TODO:			
+// `X509_NAME_oneline` return a string and might be freed by `OPENSSL_free`
 char *X509_NAME_oneline(const X509_NAME *mame, char *buf, int buflen)
 {
 	if (!buf) {
@@ -83,61 +114,23 @@ char *X509_NAME_oneline(const X509_NAME *mame, char *buf, int buflen)
 
 int X509_NAME_digest(const X509_NAME *name, const EVP_MD *md, unsigned char *dgst, unsigned int *dgstlen)
 {
-	// FIXME: do digest
+	SM3_CTX sm3_ctx;
+
+	if (!name || !dgst || !dgstlen) {
+		error_print();
+		return 0;
+	}
+	if (!name->d || !name->dlen) {
+		error_print();
+		return 0;
+	}
+
+	sm3_init(&sm3_ctx);
+	sm3_update(&sm3_ctx, name->d, name->dlen);
+	sm3_finish(&sm3_ctx, dgst);
 	*dgstlen = 32;
 	return 1;
 }
-
-const ASN1_TIME *X509_get0_notBefore(const X509 *x509)
-{
-	time_t *not_before = (time_t *)&x509->not_before;
-
-	// 在OpenSSL中，X509_get0_notBefore 直接返回X509的一个属性，但是在这个项目中，X509可能还没有解析
-	// 因此X509中的not_before可能还没有被赋值
-	// 可能要在其他某个函数中完成这个任务
-	if (x509_cert_get_details(x509->d, x509->dlen,
-		NULL,
-		NULL, NULL,
-		NULL,
-		NULL, NULL,
-		not_before, NULL,
-		NULL, NULL,
-		NULL,
-		NULL, NULL,
-		NULL, NULL,
-		NULL, NULL,
-		NULL,
-		NULL, NULL) != 1) {
-		error_print();
-		return NULL;
-	}
-	return not_before;
-}
-
-const ASN1_TIME *X509_get0_notAfter(const X509 *x509)
-{
-	time_t *not_after = (time_t *)&x509->not_after;
-	// 同notBefore
-
-	if (x509_cert_get_details(x509->d, x509->dlen,
-		NULL,
-		NULL, NULL,
-		NULL,
-		NULL, NULL,
-		NULL, not_after,
-		NULL, NULL,
-		NULL,
-		NULL, NULL,
-		NULL, NULL,
-		NULL, NULL,
-		NULL,
-		NULL, NULL) != 1) {
-		error_print();
-		return NULL;
-	}
-	return not_after;
-}
-
 
 void *X509_STORE_CTX_get_ex_data(const X509_STORE_CTX *ctx, int idx)
 {
@@ -171,10 +164,23 @@ int X509_check_host(X509 *x509, const char *name, size_t namelen, unsigned int f
 
 int X509_digest(const X509 *x509, const EVP_MD *md, unsigned char *dgst, unsigned int *dgstlen)
 {
-	*dgstlen = 32;
-	return 0;
-}
+	SM3_CTX sm3_ctx;
 
+	if (!x509 || !dgst || !dgstlen) {
+		error_print();
+		return 0;
+	}
+	if (!x509->d || !x509->dlen) {
+		error_print();
+		return 0;
+	}
+
+	sm3_init(&sm3_ctx);
+	sm3_update(&sm3_ctx, x509->d, x509->dlen);
+	sm3_finish(&sm3_ctx, dgst);
+	*dgstlen = 32;
+	return 1;
+}
 
 int X509_set_ex_data(X509 *d, int idx, void *arg)
 {
@@ -186,16 +192,6 @@ int X509_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func, CRYPTO
 	return 1;
 }
 
-void X509_free(X509 *x509)
-{
-	if (x509) {
-		if (x509->d) {
-			free(x509->d);
-		}
-		free(x509);
-	}
-}
-
 X509_NAME *sk_X509_NAME_value(const STACK_OF(X509_NAME) *sk, int idx)
 {
 	return NULL;
@@ -203,9 +199,12 @@ X509_NAME *sk_X509_NAME_value(const STACK_OF(X509_NAME) *sk, int idx)
 
 int sk_X509_NAME_num(const STACK_OF(X509_NAME) *sk)
 {
+	if (!sk) {
+		error_print();
+		return 0;
+	}
 	return sk->top;
 }
-
 
 STACK_OF(X509) *sk_X509_new_null()
 {
@@ -222,12 +221,19 @@ STACK_OF(X509) *sk_X509_new_null()
 
 int sk_X509_num(const STACK_OF(X509) *sk)
 {
+	if (!sk) {
+		error_print();
+		return 0;
+	}
 	return sk->top;
 }
 
-
 int sk_X509_push(STACK_OF(X509) *sk, const X509 *x509)
 {
+	if (!sk || !x509) {
+		error_print();
+		return 0;
+	}
 	if (sk->top >= STACK_OF_X509_MAX_NUM) {
 		error_print();
 		return 0;
@@ -240,6 +246,9 @@ int sk_X509_push(STACK_OF(X509) *sk, const X509 *x509)
 
 void sk_X509_pop_free(STACK_OF(X509) *sk, void (*func)(X509 *))
 {
+	if (!sk) {
+		error_print();
+	}
 	if (sk->top > 0) {
 		sk->top -= 1;
 	}

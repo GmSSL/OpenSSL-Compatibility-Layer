@@ -90,18 +90,28 @@ typedef struct {
 	uint8_t *d;
 	size_t dlen;
 	ASN1_INTEGER serial;
-	X509_NAME subject;
 	X509_NAME issuer;
 	time_t not_before;
 	time_t not_after;
+	X509_NAME subject;
 } X509;
 
+X509 *X509_new(void);
 void X509_free(X509 *x509);
 
+// `X509_get_serialNumber` return an internal pointer of `x509` and MUST NOT be freed.
 ASN1_INTEGER *X509_get_serialNumber(X509 *x509);
+
+// `X509_get_subject_name` return an internal pointer of `x509` and MUST NOT be freed.
 X509_NAME *X509_get_subject_name(const X509 *x509);
+
+// `X509_get_issuer_name` return an internal pointer of `x509` and MUST NOT be freed.
 X509_NAME *X509_get_issuer_name(const X509 *x509);
+
+// `X509_get0_notBefore` return an internal pointer of `x509` and MUST NOT be freed.
 const ASN1_TIME *X509_get0_notBefore(const X509 *x509);
+
+// `X509_get0_notAfter` return an internal pointer of `x509` and MUST NOT be freed.
 const ASN1_TIME *X509_get0_notAfter(const X509 *x509);
 
 int X509_check_host(X509 *x509, const char *name, size_t namelen, unsigned int flags, char **peername);
@@ -113,9 +123,8 @@ int X509_digest(const X509 *x509, const EVP_MD *md, unsigned char *dgst, unsigne
 
 #define X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT 0x01
 
-// Nginx通过解析文件或者直接解析数据两种不同方式解析证书，在解析之后将原始数据（DER或文件名）再放到X509对象中
-// 我觉得这个功能没有用处
 
+// Nginx use `ex_data` to save the DER raw_data or filename into `X509` object
 int X509_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func, CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
 int X509_set_ex_data(X509 *x509, int idx, void *arg);
 void *X509_get_ex_data(const X509 *x509, int idx);
@@ -144,8 +153,8 @@ void sk_X509_pop_free(STACK_OF(X509) *sk, void (*func)(X509 *));
 typedef void X509_STORE;
 typedef void X509_STORE_CTX;
 
-// 这几个函数仅用于ngx_ssl_verify_callback记录当前证书验证信息
-// 如果Nginx未设置NGX_DEBUG --with-debug，那么不会调用这几个函数
+// used in ngx_ssl_verify_callback to save the verification info
+// If Nginx is not configured `--with-debug`, i.e. define `NGX_DEBUG`, these `X509_STORE_CTX_` functions will not called
 void *X509_STORE_CTX_get_ex_data(const X509_STORE_CTX *d, int idx);
 X509 *X509_STORE_CTX_get_current_cert(const X509_STORE_CTX *ctx);
 int   X509_STORE_CTX_get_error(const X509_STORE_CTX *ctx);

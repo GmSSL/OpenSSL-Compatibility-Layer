@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <gmssl/mem.h>
+#include <gmssl/x509.h>
 #include <gmssl/error.h>
 #include <openssl/ssl.h>
 #include <openssl/crypto.h>
@@ -20,8 +21,6 @@ int OPENSSL_init_ssl(uint64_t opts, const OPENSSL_INIT_SETTINGS *settings)
 {
 	return 1;
 }
-
-
 
 // GmSSL does not support this
 long SSL_CTX_set_timeout(SSL_CTX *ctx, long timeout_seconds)
@@ -131,20 +130,40 @@ void SSL_CTX_set_client_CA_list(SSL_CTX *ctx, STACK_OF(X509_NAME) *list)
 {
 }
 
-// 在启用client_verify时，Nginx通过这个`SSL_get1_peer_certificate`获得客户端证书
-// 如果返回值为NULL，那么Nginx会返回 400 Bad Request - No required SSL certificate was sent 错误消息
+// Nginx use `SSL_get1_peer_certificate` to get client_verify certificate
+// `SSL_get1_peer_certificate` works fine when caller is the server.
+// But if the caller is the client, `SSL_get1_peer_certificate` only returns the signing cert
 X509 *SSL_get1_peer_certificate(const SSL *ssl)
 {
+	const uint8_t *certs;
+	size_t certslen;
+	const uint8_t *cert;
+	size_t certlen;
 	X509 *x509;
 
-	if (!(x509 = (X509 *)malloc(sizeof(*x509)))) {
+	if (ssl->is_client) {
+		certs = ssl->server_certs;
+		certslen = ssl->server_certs_len;
+	} else {
+		certs = ssl->client_certs;
+		certslen = ssl->client_certs_len;
+	}
+
+	if (x509_cert_from_der(&cert, &certlen, &certs, &certslen) != 1) {
+		error_print();
+		return NULL;
+	}
+	if (certlen > X509_MAX_SIZE) {
+		error_print();
+		return NULL;
+	}
+	if (!(x509 = X509_new())) {
 		error_print();
 		return NULL;
 	}
 
-	// FIXME: 从`ssl`中获取客户端证书
-	memset(x509, 0, sizeof(*x509));
-
+	memcpy(x509->d, cert, certlen);
+	x509->dlen = certlen;
 	return x509;
 }
 
@@ -163,23 +182,16 @@ STACK_OF(X509_NAME) *SSL_CTX_get_client_CA_list(const SSL_CTX *ctx)
 	return NULL;
 }
 
-
-
-
 int SSL_CTX_get_verify_mode(const SSL_CTX *ctx)
 {
 	// 这里要看一下返回的mode都有哪些可能			
 	return SSL_VERIFY_PEER;
 }
 
-
-
-
 const SSL_METHOD *SSLv23_method(void)
 {
 	return NULL;
 }
-
 
 SSL_CTX *SSL_CTX_new(const SSL_METHOD *method)
 {
@@ -276,11 +288,6 @@ X509_STORE *SSL_CTX_get_cert_store(const SSL_CTX *ctx)
 {
 	return NULL;
 }
-
-
-
-
-
 
 int SSL_CTX_get_ex_new_index(long argl, void *argp,
 	CRYPTO_EX_new *new_func,
@@ -531,10 +538,10 @@ int SSL_get_ex_data_X509_STORE_CTX_idx(void)
 	return 0;
 }
 
-
 // 返回 SSL_SENT_SHUTDOWN, SSL_RECEIVED_SHUTDOWN 等状态信息
 // 但是我们也处理不了这个值，
 // 协议是QUIC的时候返回0，我估计因为我们没有处理能力，返回什么都没有区别
+
 int SSL_get_shutdown(const SSL *ssl)
 {
 	return 1;
@@ -610,7 +617,6 @@ char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf, int size)
 {
 	return "SSL_CIPHER_description()";
 }
-
 
 int SSL_use_certificate(SSL *ssl, X509 *x509)
 {

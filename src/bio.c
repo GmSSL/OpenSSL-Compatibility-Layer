@@ -12,7 +12,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <gmssl/error.h>
-#include "openssl/bio.h"
+#include <openssl/bio.h>
 
 
 const BIO_METHOD *BIO_s_mem(void)
@@ -46,9 +46,6 @@ BIO *BIO_new_file(const char *filename, const char *mode)
 {
 	FILE *fp;
 
-	//Nginx打开证书和密钥文件时会调用`BIO_new_file`
-	//fprintf(stderr, "BIO_new_file(%s)\n", filename);
-
 	if (!(fp = fopen(filename, mode))) {
 		error_print();
 		return NULL;
@@ -65,6 +62,8 @@ int BIO_read(BIO *bio, void *buf, int len)
 	return (int)n;
 }
 
+// BIO_write() returns -2 if the "write" operation is not implemented by the BIO or -1 on other errors.
+// Otherwise it returns the number of bytes written.  This may be 0 if the BIO b is NULL or dlen <= 0.
 int BIO_write(BIO *bio, const void *buf, int len)
 {
 	size_t n;
@@ -74,17 +73,29 @@ int BIO_write(BIO *bio, const void *buf, int len)
 	return (int)n;
 }
 
-// Nginx将`X509`的属性信息打印到`BIO`中，再从`BIO`中读出来写入到一个缓冲区中
-// `BIO_pending`返回`bio`中已经写入的数据长度，用来`malloc`缓冲区
+// `BIO_pending` return the pending data size in the internal buffer.
+// When `bio` is written, the `BIO_pending` result is the written size.
+// As `FILE *` in C lang share the same read/write pointer, `fread` can read nothing after `fwrite`
+// So this implementation rewind file ptr
 int BIO_pending(BIO *bio)
 {
-	ftell(bio);
+	int ret;
+	if (!bio) {
+		error_print();
+		return -1; // from OpenSSL: BIO_pending() and BIO_wpending() return negative value or 0 on error.
+	}
+
+	ret = (int)ftell(bio);
 	rewind(bio);
-	return 1;
+	return ret;
 }
 
 int BIO_reset(BIO *bio)
 {
+	if (!bio) {
+		error_print();
+		return 0;
+	}
 	rewind(bio);
 	return 1;
 }
@@ -97,11 +108,16 @@ int BIO_free(BIO *bio)
 	return 1;
 }
 
-// Nginx调用`ASN1_TIME_print`将时间字符串按特定格式打印到`bio`中
-// 通过`BIO_get_mem_data`从中读取字符串，并用`ngx_parse_http_time`解析这个字符串
+// Nginx call `ASN1_TIME_print` to print not_before, not_after into `bio`
+// And then use `BIO_get_mem_data` to get the string ptr, and then parse the string with `ngx_parse_http_time`
+// But as in OCL the BIO is a FILE, so it can not return a buffer ptr.
 int BIO_get_mem_data(BIO *bio, char **pp)
 {
+	if (!bio || !pp) {
+		error_print();
+		return 0;
+	}
 	*(pp) = NULL;
-	return -1;
+	return 1;
 }
 

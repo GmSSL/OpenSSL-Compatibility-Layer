@@ -163,13 +163,11 @@ long _SSL_CTX_sess_set_cache_size(SSL_CTX *ctx, long t);
 int SSL_CTX_remove_session(SSL_CTX *ctx, SSL_SESSION *c);
 
 
-/*
- * SSL建立连接时调用 SSL_CTX_set_info_callback 设置的回调函数 cb
- * Nginx 通过这个回调函数调整SSL握手时的buffer大小
- * 其中通过判断 SSL_get_rbio(ssl) != SSL_get_wbio(ssl) 当前状态为握手阶段
- * GmSSL目前不支持自定义的buffer size
- */
-
+// Nginx use `SSL_CTX_set_info_callback` to change the SSL handshake buffer size
+// Nginx use SSL_get_rbio(ssl) != SSL_get_wbio(ssl) to check if current state is handshake
+// But GmSSL does not use FILE as SSL/TLS bio, nor GmSSL support caller-defined buffer size
+// So `SSL_CTX_set_info_callback` and `BIO_set_write_buffer_size` will do nothing
+// `SSL_get_rbio` and `SSL_get_wbio` will return NULL
 void SSL_CTX_set_info_callback(SSL_CTX *ctx,
 	void (*callback) (const SSL *ssl, int type, int val));
 BIO *SSL_get_rbio(const SSL *ssl);
@@ -190,9 +188,7 @@ long SSL_CTX_set_timeout(SSL_CTX *ctx, long timeout_seconds);
 int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str);
 
 
-
-// GmSSL不支持options
-// 注意：这里列出的 SSL_OP_ 不全
+// GmSSL OCL does not support options, only some SSL_OP_ options are listed here to make compile success
 #define SSL_OP_NO_COMPRESSION	1
 #define SSL_OP_NO_RENEGOTIATION	1
 
@@ -237,7 +233,6 @@ long SSL_get_verify_result(const SSL *ssl);
 
 
 
-// ngx_ssl_verify_callback 只是记录了客户端证书的信息
 # define SSL_VERIFY_NONE                 0x00
 # define SSL_VERIFY_PEER                 0x01
 # define SSL_VERIFY_FAIL_IF_NO_PEER_CERT 0x02
@@ -261,11 +256,6 @@ X509_STORE *SSL_CTX_get_cert_store(const SSL_CTX *ctx);
 int SSL_use_certificate(SSL *ssl, X509 *x509);
 int SSL_use_PrivateKey(SSL *ssl, EVP_PKEY *pkey);
 int SSL_set0_chain(SSL *ssl, STACK_OF(X509) *sk);
-
-
-
-
-
 
 
 // from <openssl/sslerr.h>

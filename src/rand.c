@@ -18,6 +18,11 @@
 
 int RAND_bytes(unsigned char *buf, int num)
 {
+	if (!buf) {
+		error_print();
+		return 0;
+	}
+
 	if (rand_bytes(buf, (size_t)num) != 1) {
 		error_print();
 		return 0;

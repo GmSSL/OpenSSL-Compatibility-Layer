@@ -1,6 +1,10 @@
-cmake_minimum_required(VERSION 3.10)
+if (CMAKE_VERSION VERSION_LESS "3.0")
+	cmake_minimum_required(VERSION 2.8)
+else()
+	cmake_minimum_required(VERSION 3.6)
+endif()
 
-project(OpenSSL-Compatible-Layer VERSION 1.0 LANGUAGES C)
+project(OpenSSL-Compatible-Layer C)
 
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 

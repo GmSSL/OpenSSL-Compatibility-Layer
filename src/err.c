@@ -66,7 +66,3 @@ int ERR_GET_REASON(unsigned long e)
 {
 	return PEM_R_NO_START_LINE;
 }
-
-
-
-

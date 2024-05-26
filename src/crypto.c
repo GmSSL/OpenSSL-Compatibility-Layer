@@ -17,7 +17,7 @@ void OPENSSL_free(void *p)
 {
 	if (p) {
 		//fprintf(stderr, "OPENSSL_free %s\n", (char *)p);
-		//free(p); // 目前会导致segment fault
+		//free(p); // lead to segment fault							
 	}
 }
 
@@ -35,6 +35,11 @@ OPENSSL_INIT_SETTINGS *OPENSSL_INIT_new(void)
 
 int OPENSSL_INIT_set_config_appname(OPENSSL_INIT_SETTINGS *init, const char *name)
 {
+	if (!init || !name) {
+		error_print();
+		return 0;
+	}
+
 	init->appname = name;
 	return 1;
 }

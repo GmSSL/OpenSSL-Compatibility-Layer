@@ -35,6 +35,11 @@ EVP_PKEY *PEM_read_bio_PrivateKey(BIO *bio, EVP_PKEY **pp, pem_password_cb *cb, 
 	EVP_PKEY *pkey = NULL;
 	char pass[1024] = {0};
 
+	if (!bio || !cb || !u) {
+		error_print();
+		return NULL;
+	}
+
 	cb(pass, sizeof(pass), 0, u);
 
 	if (!(pkey = (EVP_PKEY *)malloc(sizeof(*pkey)))) {
@@ -44,20 +49,19 @@ EVP_PKEY *PEM_read_bio_PrivateKey(BIO *bio, EVP_PKEY **pp, pem_password_cb *cb, 
 
 	if (sm2_private_key_info_decrypt_from_pem(&pkey->signkey, pass, bio) != 1) {
 		error_print();
-		free(pkey);
+		EVP_PKEY_free(pkey);
 		return NULL;
 	}
 	if (sm2_private_key_info_decrypt_from_pem(&pkey->kenckey, pass, bio) != 1) {
 		error_print();
-		gmssl_secure_clear(pkey, sizeof(*pkey));
-		free(pkey);
+		EVP_PKEY_free(pkey);
 		return NULL;
 	}
 
 	if (pp && *pp) {
 		EVP_PKEY_free(*pp);
-		*pp = NULL;
 	}
+	*pp = pkey;
 	return pkey;
 }
 
@@ -66,13 +70,13 @@ X509 *PEM_read_bio_X509(BIO *bio, X509 **pp, pem_password_cb *cb, void *u)
 	X509 *x509;
 	int ret;
 
-	if (!(x509 = (X509 *)malloc(sizeof(X509)))) {
+	if (!bio) {
 		error_print();
 		return NULL;
 	}
-	if (!(x509->d = (uint8_t *)malloc(X509_MAX_SIZE))) {
+
+	if (!(x509 = X509_new())) {
 		error_print();
-		X509_free(x509);
 		return NULL;
 	}
 	if ((ret = x509_cert_from_pem(x509->d, &x509->dlen, X509_MAX_SIZE, bio)) != 1) {
@@ -83,23 +87,48 @@ X509 *PEM_read_bio_X509(BIO *bio, X509 **pp, pem_password_cb *cb, void *u)
 		return NULL;
 	}
 
-	return x509;
-}
-
-X509 *PEM_read_bio_X509_AUX(BIO *bio, X509 **pp, pem_password_cb *cb, void *u)
-{
-	X509 *x509;
-
-	if (!(x509 = PEM_read_bio_X509(bio, pp, cb, u))) {
+	if (x509_cert_get_details(x509->d, x509->dlen,
+		NULL,
+		(const uint8_t **)&x509->serial.d, &x509->serial.dlen,
+		NULL,
+		(const uint8_t **)&x509->issuer.d, &x509->issuer.dlen,
+		&x509->not_before, &x509->not_after,
+		(const uint8_t **)&x509->subject.d, &x509->subject.dlen,
+		NULL,
+		NULL, NULL,
+		NULL, NULL,
+		NULL, NULL,
+		NULL,
+		NULL, NULL) != 1) {
+		X509_free(x509);
 		error_print();
 		return NULL;
 	}
 
+	if (pp && *pp) {
+		X509_free(*pp);
+	}
+	*pp = x509;
+	return x509;
+}
+
+// `PEM_read_bio_X509_AUX` do more checks than `PEM_read_bio_X509`
+X509 *PEM_read_bio_X509_AUX(BIO *bio, X509 **pp, pem_password_cb *cb, void *u)
+{
+	X509 *x509;
+	if (!(x509 = PEM_read_bio_X509(bio, pp, cb, u))) {
+		error_print();
+		return NULL;
+	}
 	return x509;
 }
 
 int PEM_write_bio_X509(BIO *bio, X509 *x509)
 {
+	if (!bio || !x509) {
+		error_print();
+		return 0;
+	}
 	if (x509_cert_to_pem(x509->d, x509->dlen, bio) != 1) {
 		error_print();
 		return 0;
