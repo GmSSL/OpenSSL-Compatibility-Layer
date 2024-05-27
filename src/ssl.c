@@ -22,11 +22,12 @@ int OPENSSL_init_ssl(uint64_t opts, const OPENSSL_INIT_SETTINGS *settings)
 	return 1;
 }
 
-// GmSSL does not support this
+// The default timeout of OpenSSL is 300s (5 minutes)
+// When a `SSL` is timeout, the SESSION data will be removed, client have to do a full Handshake with server.
+// GmSSL 3.1 does not support SSL_SESSION and timeout, so timeout is always 0
 long SSL_CTX_set_timeout(SSL_CTX *ctx, long timeout_seconds)
 {
-	long previous_timeout_seconds = 180;
-	return previous_timeout_seconds;
+	return 0;
 }
 
 long SSL_CTX_get_timeout(SSL_CTX *ctx)
@@ -34,12 +35,18 @@ long SSL_CTX_get_timeout(SSL_CTX *ctx)
 	return 0;
 }
 
-
+// a typical cipher list is ""HIGH:!aNULL:!kRSA:!PSK:!SRP:!MD5:!RC4";"
+// so we omit the input `str`
 int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str)
 {
 	const int ciphers[] = {
 		TLS_cipher_ecdhe_sm4_cbc_sm3,
 	};
+
+	if (!ctx || !str) {
+		error_print();
+		return 0;
+	}
 
 	if (tls_ctx_set_cipher_suites(ctx, ciphers, sizeof(ciphers)/sizeof(ciphers[0])) != 1) {
 		error_print();
@@ -49,6 +56,7 @@ int SSL_CTX_set_cipher_list(SSL_CTX *ctx, const char *str)
 	return 1;
 }
 
+// GmSSL does not support options
 uint64_t SSL_CTX_set_options(SSL_CTX *ctx, uint64_t options)
 {
 	uint64_t bitmask = 0;
@@ -73,9 +81,10 @@ uint64_t SSL_clear_options(SSL *ssl, uint64_t options)
 	return bitmask;
 }
 
+// GmSSL does not support different mode (such as SSL_MODE_ENABLE_PARTIAL_WRITE)
 long SSL_CTX_set_mode(SSL_CTX *ctx, long mode)
 {
-	return mode;
+	return 0;
 }
 
 int SSL_CTX_set_min_proto_version(SSL_CTX *ctx, int version)
@@ -92,11 +101,11 @@ void SSL_CTX_set_cert_cb(SSL_CTX *c, int (*cert_cb)(SSL *ssl, void *arg), void *
 {
 }
 
+// `SSL_CTX_set_read_ahead` is useful in DTLS, GmSSL does not support read ahead
 long SSL_CTX_set_read_ahead(SSL_CTX *ctx, int yes)
 {
-	return 1;
+	return 1; // How about return 0	?			
 }
-
 
 void SSL_CTX_set_verify(SSL_CTX *ctx, int mode, SSL_verify_cb verify_callback)
 {
@@ -167,6 +176,11 @@ X509 *SSL_get1_peer_certificate(const SSL *ssl)
 	return x509;
 }
 
+// Sometimes even is handshake is success, `SSL_get_verify_result` still return error for some reasons
+// 	* SSL_CTX_set_verify use `SSL_VERIFY_NONE`
+//	* The server hostname does not match the certificate subject
+// In Ngnix, `SSL_get_verify_result` is typically used with client_verify, so we assume GmSSL will handle
+// all the verification. We assume that is handshake is ok, verify result is ok
 long SSL_get_verify_result(const SSL *ssl)
 {
 	return X509_V_OK;
@@ -174,17 +188,30 @@ long SSL_get_verify_result(const SSL *ssl)
 
 const char *X509_verify_cert_error_string(long n)
 {
-	return "error";
+	if (n) {
+		return "error";
+	} else {
+		return "ok";
+	}
 }
 
+// TODO: sk_X509_NAME_new, push ... have not been implemented yet!
 STACK_OF(X509_NAME) *SSL_CTX_get_client_CA_list(const SSL_CTX *ctx)
 {
+	if (!ctx) {
+		error_print();
+		return NULL;
+	}
+
+	// TODO: parse ctx->cacerts, ctx->cacertslen to parse every CA certs
+	// and then get subject, and push into STACK_OF(X509_NAME)
+
 	return NULL;
 }
 
+// GmSSL 3.1 always verify peer's certificate
 int SSL_CTX_get_verify_mode(const SSL_CTX *ctx)
 {
-	// 这里要看一下返回的mode都有哪些可能			
 	return SSL_VERIFY_PEER;
 }
 
@@ -205,7 +232,7 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *method)
 
 	if (tls_ctx_init(ctx, TLS_protocol_tlcp, is_client) != 1) {
 		error_print();
-		//free(ctx);
+		//free(ctx); // try do free  			
 		return NULL;
 	}
 
@@ -216,14 +243,14 @@ void SSL_CTX_free(SSL_CTX *ctx)
 {
 	if (ctx) {
 		//gmssl_secure_clear(ctx, sizeof(*ctx));
-		//free(ctx);
+		//free(ctx);				
 	}
 }
 
 int SSL_CTX_use_certificate(SSL_CTX *ctx, X509 *x509)
 {
 	if (ctx->certs) {
-		//free(ctx->certs);
+		//free(ctx->certs);			
 	}
 	if (!(ctx->certs = (uint8_t *)malloc(x509->dlen))) {
 		error_print();
@@ -234,11 +261,16 @@ int SSL_CTX_use_certificate(SSL_CTX *ctx, X509 *x509)
 	return 1;
 }
 
-
+// `SSL_CTX_set0_chain` is a macro of `SSL_CTX_ctrl` in OpenSSL
 int _SSL_CTX_set0_chain(SSL_CTX *ctx, STACK_OF(X509) *sk)
 {
 	size_t total_len = ctx->certslen;
 	int i;
+
+	if (!ctx || !sk) {
+		error_print();
+		return 0;
+	}
 
 	for (i = 0; i < sk->top; i++) {
 		total_len += sk->values[i].dlen;
@@ -259,11 +291,16 @@ int _SSL_CTX_set0_chain(SSL_CTX *ctx, STACK_OF(X509) *sk)
 
 int SSL_CTX_use_PrivateKey(SSL_CTX *ctx, EVP_PKEY *pkey)
 {
+	if (!ctx || !pkey) {
+		error_print();
+		return 0;
+	}
 	ctx->signkey = pkey->signkey;
 	ctx->kenckey = pkey->kenckey;
 	return 1;
 }
 
+// `SSL_CTX_set1_group_list` is a macro os `SSL_CTX_ctrl` in OpenSSL
 int _SSL_CTX_set1_group_list(SSL_CTX *ctx, char *list)
 {
 	if (strcmp(list, "sm2p256v1") != 0) {
@@ -273,6 +310,7 @@ int _SSL_CTX_set1_group_list(SSL_CTX *ctx, char *list)
 	return 1;
 }
 
+// `SSL_CTX_set_tmp_dh` is a macro os `SSL_CTX_ctrl` in OpenSSL
 long _SSL_CTX_set_tmp_dh(SSL_CTX *ctx, DH *dh)
 {
 	return 0;
@@ -283,7 +321,7 @@ int SSL_CTX_set0_tmp_dh_pkey(SSL_CTX *ctx, EVP_PKEY *dhpkey)
 	return 0;
 }
 
-
+// OpenSSL use `X509_STORE` as the database of CA certificates
 X509_STORE *SSL_CTX_get_cert_store(const SSL_CTX *ctx)
 {
 	return NULL;
@@ -306,12 +344,6 @@ void *SSL_CTX_get_ex_data(const SSL_CTX *d, int idx)
 {
 	return NULL;
 }
-
-
-
-
-
-
 
 long _SSL_CTX_set_session_cache_mode(SSL_CTX *ctx, long mode)
 {
@@ -347,8 +379,6 @@ void SSL_CTX_sess_set_remove_cb(SSL_CTX *ctx,
 {
 }
 
-
-
 int SSL_session_reused(const SSL *ssl)
 {
 	return 0;
@@ -376,7 +406,6 @@ void SSL_SESSION_free(SSL_SESSION *session)
 	}
 }
 
-
 const unsigned char *SSL_SESSION_get_id(const SSL_SESSION *s, unsigned int *len)
 {
 	return NULL;
@@ -392,10 +421,6 @@ SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, const unsigned char **pp, long len
 	return NULL;
 }
 
-
-
-
-
 SSL *SSL_new(SSL_CTX *ctx)
 {
 	SSL *ssl;
@@ -406,7 +431,7 @@ SSL *SSL_new(SSL_CTX *ctx)
 	}
 	if (tls_init(ssl, ctx) != 1) {
 		error_print();
-		//free(ssl);
+		//free(ssl); //FIXME 			
 		return NULL;
 	}
 	return ssl;
@@ -416,7 +441,7 @@ void SSL_free(SSL *ssl)
 {
 	if (ssl) {
 		gmssl_secure_clear(ssl, sizeof(*ssl));
-		//free(ssl);
+		//free(ssl);//FIXME			
 	}
 }
 
@@ -431,16 +456,28 @@ int SSL_is_server(const SSL *ssl)
 
 const char *SSL_get_version(const SSL *ssl)
 {
+	if (!ssl) {
+		error_print();
+		return NULL;
+	}
 	return tls_protocol_name(ssl->protocol);
 }
 
 const char *SSL_get_cipher_name(const SSL *ssl)
 {
+	if (!ssl) {
+		error_print();
+		return NULL;
+	}
 	return tls_cipher_suite_name(ssl->cipher_suite);
 }
 
 char *SSL_get_shared_ciphers(const SSL *ssl, char *buf, int buflen)
 {
+	if (!ssl) {
+		error_print();
+		return NULL;
+	}
 	strncpy(buf, tls_cipher_suite_name(TLS_cipher_ecdhe_sm4_cbc_sm3), buflen);
 	return buf;
 }
@@ -454,7 +491,6 @@ void SSL_set_accept_state(SSL *ssl)
 {
 	ssl->is_client = 0;
 }
-
 
 int SSL_set_fd(SSL *ssl, int fd)
 {
@@ -488,7 +524,6 @@ int SSL_do_handshake(SSL *ssl)
 	return 1;
 }
 
-// 这里还是要说明为什么设置这些值
 int SSL_read(SSL *ssl, void *buf, int num)
 {
 	int ret;
@@ -538,10 +573,7 @@ int SSL_get_ex_data_X509_STORE_CTX_idx(void)
 	return 0;
 }
 
-// 返回 SSL_SENT_SHUTDOWN, SSL_RECEIVED_SHUTDOWN 等状态信息
-// 但是我们也处理不了这个值，
-// 协议是QUIC的时候返回0，我估计因为我们没有处理能力，返回什么都没有区别
-
+// OpenSSL return SSL_SENT_SHUTDOWN, SSL_RECEIVED_SHUTDOWN
 int SSL_get_shutdown(const SSL *ssl)
 {
 	return 1;
@@ -549,15 +581,13 @@ int SSL_get_shutdown(const SSL *ssl)
 
 int SSL_shutdown(SSL *ssl)
 {
-	// 当客户端Ctrl+C关闭连接时，客户端进程已经关闭，socket已经关闭，因此服务器端的shutdown不会返回1
+	// when client Ctrl+c close connections, the socket is closed, so server shutdown will not return 1
 	if (tls_shutdown(ssl) != 1) {
 		error_print();
 		return 0;
 	}
 	return 1;
 }
-
-
 
 int SSL_get_ex_new_index(long argl, void *argp,
 	CRYPTO_EX_new *new_func,
@@ -585,8 +615,6 @@ int SSL_get_error(const SSL *ssl, int ret)
 	}
 	return SSL_ERROR_NONE;
 }
-
-
 
 void SSL_CTX_set_info_callback(SSL_CTX *ctx,
 	void (*callback) (const SSL *ssl, int type, int val))

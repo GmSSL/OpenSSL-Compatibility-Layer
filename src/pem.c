@@ -58,10 +58,12 @@ EVP_PKEY *PEM_read_bio_PrivateKey(BIO *bio, EVP_PKEY **pp, pem_password_cb *cb, 
 		return NULL;
 	}
 
-	if (pp && *pp) {
-		EVP_PKEY_free(*pp);
+	if (pp) {
+		if (*pp) {
+			EVP_PKEY_free(*pp);
+		}
+		*pp = pkey;
 	}
-	*pp = pkey;
 	return pkey;
 }
 
@@ -105,10 +107,12 @@ X509 *PEM_read_bio_X509(BIO *bio, X509 **pp, pem_password_cb *cb, void *u)
 		return NULL;
 	}
 
-	if (pp && *pp) {
-		X509_free(*pp);
+	if (pp) {
+		if (*pp) {
+			X509_free(*pp);
+		}
+		*pp = x509;
 	}
-	*pp = x509;
 	return x509;
 }
 

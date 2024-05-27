@@ -1,7 +1,20 @@
 # OpenSSL-Compatibility-Layer
 OpenSSL-Compatible-Layer 是 GmSSL 项目下的一个子项目，提供一个将 GmSSL 接口封装为 OpenSSL 兼容接口的层。该项目旨在为需要使用 GmSSL 加密功能但构建于 OpenSSL 之上的应用程序提供无缝集成，可以将基于OpenSSL的程序，在无需修改代码的情况下迁移至GmSSL，并自动调用GmSSL中的国密算法。
 
+## 兼容性
+
+经过测试的兼容应用包括：
+
+* Nginx-1.16.1
+* Nginx-1.18.0
+* Nginx-1.20.2
+* Nginx-1.22.1
+* Nginx-1.24.0
+* Nginx-1.25.3
+
 ## 编译和安装
+
+本项目依赖GmSSL主项目，需要首先安装GmSSL。
 
 OpenSSL-Compatible-Layer需要预先安装CMake和GCC编译工具链。下载 OpenSSL-Compatible-Layer 源代码并解压，进入源代码目录，执行
 
@@ -128,6 +141,13 @@ $ echo P@ssw0rd > /usr/local/nginx/conf/tlcp_server_password.txt
 
 ### 启动服务器并测试HTTPS
 
+启动服务器
+
+```bash
+cd /usr/local/nginx
+sudo ./sbin/nginx
+```
+
 注意，在macOS上，编译安装nginx之后需要执行
 
 ```bash
@@ -137,20 +157,10 @@ sudo install_name_tool -add_rpath /usr/local/lib /usr/local/nginx/sbin/nginx
 然后可以用gmssl的命令行客户端进行验证，注意，客户端需要用于验证服务器的根CA证书，客户端证书和私钥，这些文件保存在`client`目录下。
 
 ```bash
-gmssl tlcp_client -host localhost -port 4443 -cacert rootcacert.pem
+gmssl tlcp_client -get / -host localhost -port 4443 -cacert rootcacert.pem
 ```
 
-在gmssl命令行连接服务器之后需要发送三行消息
 
-```
-GET / HTTP/1.1
-Host: localhost
-<return>
-```
-
-然后可以看到Nginx返回的index.html。此时连接没有中断，可再次访问。
-
-如果gmssl客户端发送的请求格式不正确，例如发送了`GET /`，那么Nginx-1.22仍然返回index.html，但是会shutdown SSL连接。
 
 ### 设置Nginx验证客户端证书
 
@@ -160,7 +170,7 @@ Host: localhost
 
 ```
 server {
-	listen       4443 ssl;
+	listen       4433 ssl;
 	server_name  localhost;
 
 	ssl_certificate      /usr/local/nginx/conf/tlcp_server_certs.pem;
@@ -182,6 +192,8 @@ server {
 其中增加了`ssl_client_certificate`、`ssl_verify_client`和`ssl_verify_depth`选项。
 
 其中`ssl_client_certificate`用于设置签发客户端证书的CA证书。
+
+注意：这个配置中将端口号设置为`4433`，因为Nginx可以监听多个端口，因此服务器配置中可以分别监听一个无需客户端验证的端口4443，和一个客户端验证的4433。
 
 ### 生成客户端证书
 
@@ -206,8 +218,25 @@ $ sudo cp cacert.pem /usr/local/nginx/conf/tlcp_client_verify_cacert.pem
 执行
 
 ```bash
-$ gmssl tlcp_client -host localhost -port 4443 -cacert rootcacert.pem -cert clientcert.pem -key clientkey.pem -pass 123456
+$ gmssl tlcp_client -get / -host localhost -port 4433 -cacert rootcacert.pem -cert clientcert.pem -key clientkey.pem -pass 123456
 ```
 
+### 手工测试HTTP
 
+去掉`tlcp_client`中的`-get /`参数，可以在终端下手动测试HTTP交互
 
+```
+$ gmssl tlcp_client -host localhost -port 4433 -cacert rootcacert.pem -cert clientcert.pem -key clientkey.pem -pass 123456
+```
+
+在gmssl命令行连接服务器之后需要发送三行消息
+
+```
+GET / HTTP/1.1
+Host: localhost
+<return>
+```
+
+然后可以看到Nginx返回的index.html。此时连接没有中断，可再次访问。
+
+如果gmssl客户端发送的请求格式不正确，例如发送了`GET /`，那么Nginx-1.22仍然返回index.html，但是会shutdown SSL连接。
