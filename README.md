@@ -3,7 +3,7 @@ OpenSSL-Compatible-Layer 是 GmSSL 项目下的一个子项目，提供一个将
 
 ## 兼容性
 
-经过测试的兼容应用包括：
+下面是经过测试的兼容应用（及版本号），操作系统包括Ubuntu Server 22.04 LTS, CentOS 7.9, macOS 14.5
 
 * Nginx-1.16.1
 * Nginx-1.18.0
@@ -148,7 +148,9 @@ cd /usr/local/nginx
 sudo ./sbin/nginx
 ```
 
-注意，在macOS上，编译安装nginx之后需要执行
+注意，如果找不到动态库，在
+
+在macOS上，编译安装nginx之后需要执行
 
 ```bash
 sudo install_name_tool -add_rpath /usr/local/lib /usr/local/nginx/sbin/nginx

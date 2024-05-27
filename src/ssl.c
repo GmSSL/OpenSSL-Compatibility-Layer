@@ -232,7 +232,7 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *method)
 
 	if (tls_ctx_init(ctx, TLS_protocol_tlcp, is_client) != 1) {
 		error_print();
-		//free(ctx); // try do free  			
+		free(ctx); // try do free  			
 		return NULL;
 	}
 
@@ -242,15 +242,15 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *method)
 void SSL_CTX_free(SSL_CTX *ctx)
 {
 	if (ctx) {
-		//gmssl_secure_clear(ctx, sizeof(*ctx));
-		//free(ctx);				
+		gmssl_secure_clear(ctx, sizeof(*ctx));
+		free(ctx);				
 	}
 }
 
 int SSL_CTX_use_certificate(SSL_CTX *ctx, X509 *x509)
 {
 	if (ctx->certs) {
-		//free(ctx->certs);			
+		free(ctx->certs);			
 	}
 	if (!(ctx->certs = (uint8_t *)malloc(x509->dlen))) {
 		error_print();
@@ -431,7 +431,7 @@ SSL *SSL_new(SSL_CTX *ctx)
 	}
 	if (tls_init(ssl, ctx) != 1) {
 		error_print();
-		//free(ssl); //FIXME 			
+		free(ssl); //FIXME 			
 		return NULL;
 	}
 	return ssl;
@@ -441,7 +441,7 @@ void SSL_free(SSL *ssl)
 {
 	if (ssl) {
 		gmssl_secure_clear(ssl, sizeof(*ssl));
-		//free(ssl);//FIXME			
+		free(ssl);//FIXME			
 	}
 }
 
