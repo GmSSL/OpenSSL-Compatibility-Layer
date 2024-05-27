@@ -40,7 +40,7 @@ EVP_MD_CTX *EVP_MD_CTX_new(void)
 	return md_ctx;
 }
 
-// 这里是否应该判断一下是否为SM3或者SHA256之类？
+// Do we need to check if md is SM3 or SHA256?			
 int EVP_DigestInit_ex(EVP_MD_CTX *ctx, const EVP_MD *md, ENGINE *engine)
 {
 	if (sm3_digest_init(ctx, NULL, 0) != 1) {

@@ -55,13 +55,13 @@ void ERR_clear_error(void)
 {
 }
 
-// 仅用于`PEM_read_bio_X509`遇到`eof(bio)`的情况
+// Nginx `PEM_read_bio_X509`, when `eof(bio)`, check this to clear error
 int ERR_GET_LIB(unsigned long e)
 {
 	return ERR_LIB_PEM;
 }
 
-// 仅用于`PEM_read_bio_X509`遇到`eof(bio)`的情况
+// Nginx `PEM_read_bio_X509`, when `eof(bio)`, check this to clear error
 int ERR_GET_REASON(unsigned long e)
 {
 	return PEM_R_NO_START_LINE;
