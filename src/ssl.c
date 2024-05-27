@@ -402,7 +402,7 @@ SSL_SESSION *SSL_get0_session(const SSL *ssl)
 void SSL_SESSION_free(SSL_SESSION *session)
 {
 	if (session) {
-		//free(session);
+		free(session);
 	}
 }
 

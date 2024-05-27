@@ -17,10 +17,7 @@ extern "C" {
 #endif
 
 
-
-#define OPENSSL_free(a)	free(a)
-
-
+void OPENSSL_free(void *p);
 
 typedef struct {
 	const char *appname;
